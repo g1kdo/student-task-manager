@@ -51,4 +51,12 @@ public class TaskManager {
             System.out.println("Task not found:(");
         }
     }
+
+    public int getTaskCount() {
+        return tasks.size();
+    }
+
+    public boolean isTaskCompleted(int index) {
+        return tasks.get(index).isCompleted();
+    }
 }
