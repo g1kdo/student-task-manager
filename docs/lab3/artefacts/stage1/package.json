@@ -1,0 +1,13 @@
+{
+  "name": "stage1-schema-check",
+  "private": true,
+  "type": "module",
+  "description": "Validates the Stage 1 JSON Schema in docs/features/task-due-dates.md and asserts its conditional rule accepts and rejects the right payloads.",
+  "scripts": {
+    "check": "node check-schema.mjs ../../../features/task-due-dates.md"
+  },
+  "dependencies": {
+    "ajv": "^8.17.1",
+    "ajv-formats": "^3.0.1"
+  }
+}

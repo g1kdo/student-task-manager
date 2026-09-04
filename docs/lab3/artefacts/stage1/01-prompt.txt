@@ -1,0 +1,60 @@
+STAGE 1 PROMPT — Chat UX
+Issued verbatim. Recorded here so the artefact below can be checked against
+the instruction that produced it.
+
+----------------------------------------------------------------------------
+
+You are a senior Java backend engineer. Stack: Java 21, Maven, JUnit 5,
+SLF4J/Logback. No web framework — this is a console application. Layering
+convention: ConsoleApp (rendering and input) -> TaskManager (rules, owns the
+list) -> Task (model, guards its own invariants). TaskManager never writes to
+System.out; it returns outcomes and logs.
+
+Feature request: Let students give a task a due date so they can tell what's
+urgent. The due date is optional. If they want reminding, we need to know how
+many days ahead — but a reminder makes no sense on a task with no due date.
+Don't let them add the same task twice; tell them it already exists instead of
+silently adding a duplicate. And when they list tasks, show which ones are
+overdue, which are due today, and which are still upcoming.
+
+Produce one self-contained Markdown document with these fenced sections, in
+this exact order, and nothing else:
+
+1. A `json` block: JSON Schema (draft 2020-12) for the task-creation contract,
+   with `required`, formats and constraints made explicit, and the conditional
+   rule expressed as an if/then so it is machine-checkable rather than prose.
+
+2. A `java` block: the model changes — the fields added to Task, the value type
+   carrying the creation request, and where each validation rule is enforced.
+   Guard invariants in the constructor, not in the caller.
+
+3. A `java` block: the API surface — TaskManager method signatures, the domain
+   type for derived urgency, and the outcome type that lets the caller tell a
+   duplicate apart from a success. Use TODO markers where it must bind to real
+   repository code.
+
+4. A `markdown` block: a test outline as a bullet list, naming the boundary
+   cases explicitly, not just the happy paths.
+
+Enumerate assumptions inline as `// ASSUMPTION:` comments. Do not ask me
+questions; make the reasonable choice and mark it. Do not read or edit the
+repository in this stage — this is a design artefact, so anything that must
+bind to real code stays a TODO.
+
+----------------------------------------------------------------------------
+
+PROMPT SHAPE — why it is built this way
+
+Fixed section order with fixed fence languages turns the reply into a parseable
+artefact rather than an essay. That is the entire reason the Stage 1 -> Stage 2
+bridge is friction-free: Stage 2 can be pointed at section 3 of a file instead
+of at a wall of text.
+
+"Do not ask me questions; make the reasonable choice and mark it" prevents the
+chat stage from stalling on clarification, which would put a human back in the
+loop before any artefact exists. The cost is assumptions, so they are required
+to be visible as ASSUMPTION comments and can be rejected at the approval gate.
+
+"Do not read or edit the repository" keeps the stage boundary real: design
+first, grounding second. Section 3's TODO markers are the seam Stage 2 is
+supposed to close.

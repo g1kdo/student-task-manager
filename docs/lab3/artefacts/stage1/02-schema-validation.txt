@@ -1,0 +1,36 @@
+Stage 1 artefact — JSON Schema validation
+Command: npm install && npm run check   (from docs/lab3/artefacts/stage1/)
+Date:    2026-09-04 14:57:51 UTC
+Node:    v24.13.0
+Validator: ajv 8 (draft 2020-12, strict mode) + ajv-formats
+
+The schema is read out of the committed docs/features/task-due-dates.md,
+not retyped, so this checks the delivered artefact itself.
+
+================================ OUTPUT ================================
+Schema extracted from: C:/Users/USER/IdeaProjects/student-task-manager/docs/features/task-due-dates.md
+  title   = TaskCreate
+  $schema = https://json-schema.org/draft/2020-12/schema
+
+Schema compiles under draft 2020-12 in strict mode: PASS
+
+[PASS] name only                    expected valid   -> due date is optional
+[PASS] name + dueDate               expected valid   -> due date accepted
+[PASS] name + dueDate + reminder    expected valid   -> reminder with a due date is valid
+[PASS] reminder WITHOUT dueDate     expected invalid -> THE if/then RULE: reminder requires a due date
+[PASS] reminder with null dueDate   expected invalid -> if/then rule holds against explicit null too
+[PASS] dueDate null, no reminder    expected valid   -> explicit null means no due date
+[PASS] reminder = 0 boundary        expected valid   -> lower bound inclusive
+[PASS] reminder = 30 boundary       expected valid   -> upper bound inclusive
+[PASS] reminder = -1                expected invalid -> below minimum
+[PASS] reminder = 31                expected invalid -> above maximum
+[PASS] empty name                   expected invalid -> minLength 1
+[PASS] name 121 chars               expected invalid -> maxLength 120
+[PASS] name 120 chars               expected valid   -> maxLength boundary inclusive
+[PASS] missing name                 expected invalid -> name is required
+[PASS] bad date format              expected invalid -> format: date
+[PASS] unknown property             expected invalid -> additionalProperties false
+[PASS] reminder as string           expected invalid -> integer type enforced
+
+17 passed, 0 failed, 17 total
+EXIT=0

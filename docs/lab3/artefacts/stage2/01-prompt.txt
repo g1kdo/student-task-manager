@@ -1,0 +1,64 @@
+STAGE 2 PROMPT — IDE UX (VS Code + GitHub Copilot, Agent mode)
+Paste this into Copilot Chat with the repository open at its root.
+
+----------------------------------------------------------------------------
+
+#file:docs/features/task-due-dates.md
+#file:src/main/java/app/Task.java
+#file:src/main/java/app/TaskManager.java
+#file:src/main/java/app/ConsoleApp.java
+#file:src/test/java/app/TaskManagerTest.java
+
+Implement this feature against the real code in these files. Do not invent
+classes or introduce new dependencies — reuse the existing Task/TaskManager/
+ConsoleApp layering, the SLF4J logger already in TaskManager, and the
+readLine-based prompt already in ConsoleApp. Close every TODO(stage-2) marker
+in section 3 of the spec. Specifically:
+
+1. Add the two optional fields to Task with the invariants guarded in the
+   constructor, keeping the existing single-argument constructor delegating so
+   the current tests compile unchanged.
+
+2. Add the Urgency and AddResult enums and the derived urgencyOn(LocalDate) and
+   needsReminderOn(LocalDate) methods. Urgency must be computed from the date
+   passed in, never stored on the task.
+
+3. Add the overloaded TaskManager.addTask(String, LocalDate, Integer) returning
+   AddResult, plus hasTaskNamed(String) and tasksNeedingReminder(LocalDate).
+   Duplicate detection is case- and whitespace-insensitive. Log a rejected
+   duplicate at WARN in the same style as the existing log lines. Keep the
+   existing boolean addTask(String) behaving exactly as it does now.
+
+4. Update ConsoleApp to prompt for the two new optional fields on add, treating
+   empty input as "not set", and to show urgency in the task list. Take "today"
+   from an injectable source so tests stay deterministic.
+
+5. Write the tests from section 4 of the spec in the existing test classes,
+   following the existing @Nested/@DisplayName style. Cover the boundaries
+   named in the spec, not only the happy paths.
+
+Show me the changes as a diff before applying anything. Match the existing
+formatting, import ordering and Javadoc style. Do not touch any file not
+required by the above, and do not modify the CI workflow or the pom.
+
+----------------------------------------------------------------------------
+
+PROMPT SHAPE — why it is built this way
+
+The #file: references are the whole point of using an IDE UX at this stage.
+Copilot reads the real Task.java and TaskManager.java, so the draft is grounded
+against the code as it actually is rather than as Stage 1 imagined it — that is
+what closes the TODO markers.
+
+"Do not invent classes or introduce new dependencies" and the explicit list of
+things to reuse exist because the failure mode of an IDE agent on an existing
+codebase is a parallel implementation that compiles but duplicates what is
+already there.
+
+"Keep the existing boolean addTask(String) behaving exactly as it does now" is
+a regression fence: 69 tests depend on it, and naming that constraint is
+cheaper than discovering it from a red build.
+
+"Show me the diff before applying" is the single human approval gate for this
+stage. It is what keeps the workflow one-decision-per-stage rather than
+one-decision-per-file.

@@ -42,3 +42,7 @@ target/
 *.fdb_latexmk
 *.synctex.gz
 logs/
+
+### Lab 3 Stage 1 schema-check deps ###
+docs/lab3/artefacts/stage1/node_modules/
+docs/lab3/artefacts/stage1/package-lock.json
