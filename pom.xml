@@ -29,6 +29,7 @@
     <compiler.plugin.version>3.13.0</compiler.plugin.version>
     <jar.plugin.version>3.4.2</jar.plugin.version>
     <jacoco.plugin.version>0.8.12</jacoco.plugin.version>
+    <dependency.plugin.version>3.8.1</dependency.plugin.version>
   </properties>
 
   <dependencies>
@@ -102,6 +103,23 @@
             </manifest>
           </archive>
         </configuration>
+      </plugin>
+      <!-- Copies runtime dependencies next to the jar so `java -jar` works. -->
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-dependency-plugin</artifactId>
+        <version>${dependency.plugin.version}</version>
+        <executions>
+          <execution>
+            <id>copy-runtime-dependencies</id>
+            <phase>package</phase>
+            <goals><goal>copy-dependencies</goal></goals>
+            <configuration>
+              <outputDirectory>${project.build.directory}/lib</outputDirectory>
+              <includeScope>runtime</includeScope>
+            </configuration>
+          </execution>
+        </executions>
       </plugin>
     </plugins>
   </build>

@@ -1,0 +1,80 @@
+name: CI
+
+# The pipeline runs on every push and pull request to the long-lived
+# branches, and can be triggered by hand for a re-run.
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+  workflow_dispatch:
+
+jobs:
+  build-and-test:
+    name: Build, test and package
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+
+      - name: Compile
+        run: ./mvnw -B --no-transfer-progress clean compile
+
+      # A failing unit test fails this step, and therefore the whole pipeline.
+      - name: Run unit and integration tests
+        run: ./mvnw -B --no-transfer-progress test
+
+      - name: Package the runnable jar and produce the coverage report
+        run: ./mvnw -B --no-transfer-progress verify -DskipTests
+
+      # End-to-end check: drive the packaged application through the menu on
+      # stdin and assert on what it prints. This is what proves the artefact
+      # just built actually runs, not merely that it compiled.
+      - name: Smoke-test the packaged application
+        run: |
+          printf '1\nWrite sprint report\n2\n3\n1\n2\n5\n6\n' \
+            | java -jar target/student-task-manager.jar > smoke.out 2>&1
+          echo '----- application output -----'
+          cat smoke.out
+          echo '------------------------------'
+          fail() { echo "::error::$1"; exit 1; }
+          grep -q 'Task added'           smoke.out || fail 'add task did not confirm'
+          grep -q 'Write sprint report'  smoke.out || fail 'task list did not render the task'
+          grep -q 'Task completed'       smoke.out || fail 'complete task did not confirm'
+          grep -q 'status=UP'            smoke.out || fail 'health check did not report UP'
+          if grep -qi 'not a valid choice' smoke.out; then
+            fail 'the menu rejected valid input (stale newline regression)'
+          fi
+          echo 'Smoke test passed.'
+
+      - name: Publish test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: surefire-reports
+          path: target/surefire-reports/
+          if-no-files-found: warn
+
+      - name: Publish coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: jacoco-coverage-report
+          path: target/site/jacoco/
+          if-no-files-found: warn
+
+      - name: Publish the runnable jar
+        uses: actions/upload-artifact@v4
+        with:
+          name: student-task-manager-jar
+          path: |
+            target/student-task-manager.jar
+            target/lib/
