@@ -1,0 +1,7 @@
+# Normalise text files in the repository to LF so the Linux CI runner and
+# Windows development machine agree on line endings.
+* text=auto eol=lf
+
+*.png binary
+*.pdf binary
+*.cmd text eol=crlf

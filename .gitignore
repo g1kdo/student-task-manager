@@ -41,3 +41,4 @@ target/
 *.fls
 *.fdb_latexmk
 *.synctex.gz
+logs/
