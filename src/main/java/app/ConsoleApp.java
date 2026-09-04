@@ -32,11 +32,17 @@ public class ConsoleApp {
     private final BufferedReader in;
     private final PrintStream out;
     private final TaskManager manager;
+    private final HealthCheck healthCheck;
 
-    public ConsoleApp(InputStream in, PrintStream out, TaskManager manager) {
+    public ConsoleApp(InputStream in, PrintStream out, TaskManager manager, HealthCheck healthCheck) {
         this.in = new BufferedReader(new InputStreamReader(in, StandardCharsets.UTF_8));
         this.out = out;
         this.manager = manager;
+        this.healthCheck = healthCheck;
+    }
+
+    public ConsoleApp(InputStream in, PrintStream out, TaskManager manager) {
+        this(in, out, manager, new HealthCheck(manager));
     }
 
     public ConsoleApp(InputStream in, PrintStream out) {
@@ -168,8 +174,13 @@ public class ConsoleApp {
     }
 
     private void healthCheck() {
-        // Still a fixed string. Replaced with a real state inspection next.
-        out.println("Application is running.");
+        HealthStatus health = healthCheck.check();
+        out.println();
+        out.println("Health: " + health);
+        health.checks().forEach((name, detail) -> out.printf("  %-10s %s%n", name, detail));
+        if (!health.isHealthy()) {
+            out.println("  The application is not fully healthy; see the log for detail.");
+        }
     }
 
     /**
