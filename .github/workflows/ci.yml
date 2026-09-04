@@ -4,9 +4,9 @@ name: CI
 # branches, and can be triggered by hand for a re-run.
 on:
   push:
-    branches: [ main, develop ]
+    branches: [ main, develop, "feature/**" ]
   pull_request:
-    branches: [ main, develop ]
+    branches: [ main, develop, "feature/**" ]
   workflow_dispatch:
 
 jobs:
@@ -102,3 +102,46 @@ jobs:
           name: assessment-report-pdf
           path: docs/report/assessment-report.pdf
           if-no-files-found: error
+
+  lab3-report:
+    name: Compile the Lab 3 report
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v4
+
+      - name: Compile the Lab 3 LaTeX report
+        uses: xu-cheng/latex-action@v3
+        with:
+          root_file: lab3-multi-stage-ai-workflow.tex
+          working_directory: docs/lab3/report
+          latexmk_use_xelatex: false
+
+      - name: Publish the Lab 3 report PDF
+        uses: actions/upload-artifact@v4
+        with:
+          name: lab3-report-pdf
+          path: docs/lab3/report/lab3-multi-stage-ai-workflow.pdf
+          if-no-files-found: error
+
+  lab3-schema-check:
+    name: Validate the Stage 1 JSON Schema
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      # Re-runs the Stage 1 artefact check in CI, so the schema and its
+      # conditional rule are verified on every push rather than once by hand.
+      - name: Check the schema and its conditional rule
+        working-directory: docs/lab3/artefacts/stage1
+        run: |
+          npm install --no-audit --no-fund
+          npm run check

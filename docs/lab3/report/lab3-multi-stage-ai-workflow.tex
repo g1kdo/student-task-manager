@@ -1,0 +1,762 @@
+% =====================================================================
+%  AI & Applied Engineering - Lab 3: Multi-Stage AI Workflow Across UX Types
+%  Resubmission
+%
+%  Compiles with pdflatex (twice, for the table of contents):
+%      pdflatex lab3-multi-stage-ai-workflow.tex
+%      pdflatex lab3-multi-stage-ai-workflow.tex
+%  Or open this file in Overleaf and press Recompile.
+% =====================================================================
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{lmodern}
+\usepackage[english]{babel}
+\usepackage[a4paper,margin=2.4cm]{geometry}
+
+\usepackage{booktabs}
+\usepackage{tabularx}
+\usepackage{longtable}
+\usepackage{array}
+\usepackage{enumitem}
+\usepackage{graphicx}
+\usepackage{xcolor}
+\usepackage{listings}
+\usepackage{caption}
+\usepackage{titlesec}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,positioning,fit,backgrounds}
+\usepackage[hidelinks]{hyperref}
+
+% ---------------------------------------------------------------------
+%  Styling
+% ---------------------------------------------------------------------
+\definecolor{accent}{HTML}{1F4E79}
+\definecolor{codebg}{HTML}{F5F6F8}
+\definecolor{codeframe}{HTML}{D8DCE2}
+\definecolor{good}{HTML}{1B6B3A}
+\definecolor{bad}{HTML}{A22C22}
+\definecolor{warn}{HTML}{8A6100}
+\definecolor{chatc}{HTML}{2E5E8C}
+\definecolor{idec}{HTML}{6B4E9E}
+\definecolor{clic}{HTML}{1B6B3A}
+
+\hypersetup{
+  colorlinks=true,
+  linkcolor=accent,
+  urlcolor=accent,
+  pdftitle={Multi-Stage AI Workflow Across UX Types},
+  pdfauthor={Katy Great Adonai}
+}
+
+\titleformat{\section}{\color{accent}\Large\bfseries}{\thesection}{0.7em}{}
+\titleformat{\subsection}{\color{accent}\large\bfseries}{\thesubsection}{0.7em}{}
+\titleformat{\subsubsection}{\bfseries}{\thesubsubsection}{0.7em}{}
+
+\captionsetup{font=small,labelfont={bf,color=accent}}
+
+\newcolumntype{L}[1]{>{\raggedright\arraybackslash}p{#1}}
+
+\lstdefinestyle{plain}{
+  basicstyle=\ttfamily\scriptsize,
+  backgroundcolor=\color{codebg},
+  frame=single,
+  rulecolor=\color{codeframe},
+  framesep=5pt,
+  breaklines=true,
+  columns=fullflexible,
+  keepspaces=true,
+  showstringspaces=false
+}
+\lstdefinestyle{java}{
+  style=plain,
+  language=Java,
+  keywordstyle=\color{accent}\bfseries,
+  commentstyle=\color{black!55}\itshape,
+  stringstyle=\color{good}
+}
+\lstdefinestyle{json}{
+  style=plain,
+  literate=*{:}{{\textcolor{accent}{:}}}{1}
+}
+\lstset{style=plain}
+
+\newcommand{\code}[1]{\texttt{\small #1}}
+\newcommand{\ran}{\textcolor{good}{\textbf{EXECUTED}}}
+\newcommand{\notran}{\textcolor{bad}{\textbf{NOT RUN}}}
+\newcommand{\partly}{\textcolor{warn}{\textbf{PARTIAL}}}
+
+\setlist[itemize]{leftmargin=1.4em,itemsep=2pt,topsep=3pt}
+\setlist[enumerate]{leftmargin=1.6em,itemsep=2pt,topsep=3pt}
+
+% =====================================================================
+\begin{document}
+
+\begin{titlepage}
+\centering
+\vspace*{2.2cm}
+
+{\color{accent}\Huge\bfseries Multi-Stage AI Workflow\par}
+\vspace{0.4cm}
+{\color{accent}\Huge\bfseries Across UX Types\par}
+\vspace{0.8cm}
+{\LARGE AI \& Applied Engineering --- Lab 3\par}
+\vspace{0.3cm}
+{\large Resubmission\par}
+
+\vspace{1.6cm}
+\rule{0.75\textwidth}{1pt}\par
+\vspace{0.7cm}
+{\LARGE\bfseries Chat $\rightarrow$ IDE $\rightarrow$ CLI\par}
+\vspace{0.35cm}
+{\large Executed against \code{student-task-manager}, a real Java 21 codebase\par}
+\vspace{0.7cm}
+\rule{0.75\textwidth}{1pt}\par
+
+\vspace{2.0cm}
+{\large\bfseries Katy Great Adona\"i\par}
+\vspace{0.25cm}
+{\large AmaliTech Training --- DEG Apprenticeship, Java Backend\par}
+
+\vspace{1.4cm}
+{\large\textbf{Repository:} \url{https://github.com/g1kdo/student-task-manager}\par}
+{\normalsize Branch \code{feature/task-due-dates}\par}
+
+\vspace{0.9cm}
+\begin{minipage}{0.86\textwidth}
+\small\centering
+\textbf{What changed since the first submission.} The first submission was a
+design with no execution behind it: no repository, no prototype, and a
+self-assessment that offered a mock transcript as ``objective proof the
+artifact functions end-to-end''. That claim was wrong and is withdrawn.
+This document reports only what was actually run, names the tool and operator
+for each stage, and points every claim at a captured artefact. Section~4 states
+plainly which stages executed and which did not.
+\end{minipage}
+
+\vfill
+{\large 4 September 2026\par}
+\end{titlepage}
+
+\tableofcontents
+\newpage
+
+% =====================================================================
+\section{Problem statement}
+
+\code{student-task-manager} is a Java 21 console application with a small,
+deliberately layered design: \code{ConsoleApp} renders and reads input,
+\code{TaskManager} owns the rules and the task list, \code{Task} guards its own
+invariants. At the point this workflow began it had 69 passing tests, 92.3\,\%
+line coverage and a CI pipeline enforcing a coverage floor.
+
+The feature put through the workflow is due dates:
+
+\begin{quote}
+\itshape
+Let students give a task a due date so they can tell what's urgent. The due
+date is optional. If they want reminding, we need to know how many days ahead
+--- but a reminder makes no sense on a task with no due date. Don't let them
+add the same task twice; tell them it already exists instead of silently adding
+a duplicate. And when they list tasks, show which ones are overdue, which are
+due today, and which are still upcoming.
+\end{quote}
+
+\subsection{Why this feature, and not a toy}
+
+A workflow that only ever runs against a scratch project proves nothing about
+whether it survives contact with real code. Four properties made this feature
+worth chaining tools over:
+
+\begin{enumerate}
+  \item \textbf{A conditional contract rule.} \code{remindBeforeDays} is
+        meaningful only when \code{dueDate} is present. Conditional
+        requirement is trivial to state in prose and easy to get wrong in
+        code, which makes it a real test of the hand-off fidelity between
+        stages.
+  \item \textbf{A conflict rule.} Rejecting a duplicate rather than silently
+        adding it --- the console analogue of returning HTTP 409.
+  \item \textbf{Derived state with genuine branching.} \code{OVERDUE} /
+        \code{DUE\_TODAY} / \code{UPCOMING} / \code{NONE} is computed, never
+        stored, and has boundaries either side of ``today'' that a
+        return-value-only test can pass straight through.
+  \item \textbf{It lands in an existing, already-green codebase.} The workflow
+        had to produce an additive result that kept 69 tests passing and the
+        coverage gate satisfied --- not a plausible-looking result on a
+        throwaway repository.
+\end{enumerate}
+
+Point 4 is the substantive difference from the first submission. The original
+design targeted \code{shopfront-api}, a Python service that did not exist; this
+one targets a repository with a commit history, a CI pipeline and a coverage
+gate that can all reject bad work.
+
+% =====================================================================
+\section{Tool selection and UX-to-stage fit}
+
+Each stage uses the UX type that has an unfair advantage for that kind of work,
+and hands off a machine-parseable artefact rather than prose.
+
+\begin{table}[h]
+\centering
+\small
+\begin{tabularx}{\textwidth}{@{}p{1.7cm} p{1.3cm} p{2.5cm} X@{}}
+\toprule
+\textbf{Stage} & \textbf{UX type} & \textbf{Tool used} & \textbf{Why this UX wins here} \\
+\midrule
+1. Design \& draft
+  & \textcolor{chatc}{\textbf{Chat}}
+  & Claude Opus 5 (Claude desktop app)
+  & Chat is a \emph{reasoning canvas}. No filesystem, no premature edits ---
+    which suits divergent design work: negotiating the contract, arguing the
+    edge cases (duplicate semantics, whether a past due date is an error), and
+    producing a self-contained draft. The wide thinking surface of chat beats
+    an IDE when the artefact does not exist yet. \\
+\addlinespace
+2. Ground \& test
+  & \textcolor{idec}{\textbf{IDE}}
+  & GitHub Copilot, Agent mode, in VS Code
+  & The IDE UX is \emph{repository-aware}. It reads the real
+    \code{Task.java} and \code{TaskManager.java}, the actual import graph and
+    the existing naming and Javadoc conventions. Its strength is grounded,
+    multi-file edits --- placing the draft into the codebase as it is, not as
+    the chat imagined it. Inline diffs give a fast approve/reject loop. \\
+\addlinespace
+3. Verify \& commit
+  & \textcolor{clic}{\textbf{CLI}}
+  & Claude Code
+  & The CLI UX is an \emph{agentic executor with a real shell}. It runs
+    \code{mvnw clean verify}, reads the failures, self-heals, and then reads the
+    actual \code{git diff --staged} to author a truthful commit message. Chat
+    cannot run your test suite; the IDE runs it awkwardly. The terminal is the
+    native home of \emph{execute, observe, react}. \\
+\bottomrule
+\end{tabularx}
+\caption{Stage-to-UX fit. Each tool is used only where its UX has an advantage,
+and each hands off a parseable artefact --- a Markdown file, the git working
+tree, a commit --- which is what makes the bridges frictionless.}
+\end{table}
+
+\subsection{The bridges carry no vendor}
+
+Every hand-off rides on a universal primitive, which is what makes the design
+tool-agnostic rather than merely claiming to be:
+
+\begin{table}[h]
+\centering
+\small
+\begin{tabularx}{\textwidth}{@{}l l X@{}}
+\toprule
+\textbf{Bridge} & \textbf{Primitive} & \textbf{What crosses it} \\
+\midrule
+1 $\rightarrow$ 2 & A file in the repository & Artifact A written to \code{docs/features/task-due-dates.md}. The IDE reads it with a file reference; nothing is pasted into code. \\
+2 $\rightarrow$ 3 & The git working tree & Nothing is copied at all. The changes are already on disk, unstaged. Stage 3 reads them with \code{git}. \\
+3 $\rightarrow$ repo & A commit & The message is authored from the real staged delta, so it describes what changed rather than what anyone intended. \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+% =====================================================================
+\section{Workflow architecture}
+
+\begin{figure}[h]
+\centering
+\begin{tikzpicture}[
+    font=\small,
+    node distance=8mm,
+    stage/.style={
+      draw, rounded corners=2pt, thick, align=center,
+      minimum width=32mm, minimum height=13mm, inner sep=3pt},
+    art/.style={
+      draw, dashed, rounded corners=1pt, align=center,
+      minimum width=30mm, minimum height=9mm, inner sep=2pt,
+      font=\scriptsize},
+    io/.style={align=center, font=\scriptsize\itshape},
+    flow/.style={-{Stealth[length=2.4mm]}, thick},
+    gate/.style={draw, circle, inner sep=0.7pt, font=\tiny\bfseries}
+  ]
+
+  % --- input
+  \node[io] (req) {raw prose\\feature request};
+
+  % --- stage 1
+  \node[stage, right=10mm of req, draw=chatc, fill=chatc!8, text=chatc]
+    (s1) {\textbf{Stage 1}\\\scriptsize CHAT UX\\\scriptsize Claude Opus 5};
+
+  % --- artifact A
+  \node[art, right=9mm of s1, draw=chatc]
+    (a) {\textbf{Artifact A}\\docs/features/\\task-due-dates.md};
+
+  % --- stage 2
+  \node[stage, below=11mm of a, draw=idec, fill=idec!8, text=idec]
+    (s2) {\textbf{Stage 2}\\\scriptsize IDE UX\\\scriptsize Copilot / VS Code};
+
+  % --- artifact B
+  \node[art, left=9mm of s2, draw=idec]
+    (b) {\textbf{Artifact B}\\uncommitted\\working tree};
+
+  % --- stage 3
+  \node[stage, left=9mm of b, draw=clic, fill=clic!8, text=clic]
+    (s3) {\textbf{Stage 3}\\\scriptsize CLI UX\\\scriptsize Claude Code};
+
+  % --- artifact C
+  \node[art, below=11mm of s3, draw=clic]
+    (c) {\textbf{Artifact C}\\green build log\\+ commit SHA};
+
+  % --- repo
+  \node[io, right=10mm of c] (repo) {git repository\\\scriptsize (push / PR)};
+
+  % --- flows
+  \draw[flow] (req) -- node[gate, midway, above=1.5mm] {1} (s1);
+  \draw[flow] (s1) -- (a);
+  \draw[flow] (a) -- node[gate, midway, right=1mm] {2} (s2);
+  \draw[flow] (s2) -- (b);
+  \draw[flow] (b) -- node[gate, midway, above=1.5mm] {3} (s3);
+  \draw[flow] (s3) -- (c);
+  \draw[flow] (c) -- (repo);
+
+  % --- annotations
+  \node[io, above=1mm of s1, text width=30mm] {design contract,\\argue edge cases};
+  \node[io, right=2mm of s2.east, text width=24mm, anchor=west]
+    {read real import\\graph, ground\\the draft};
+  \node[io, left=2mm of s3.west, text width=22mm, anchor=east]
+    {mvnw verify,\\self-heal,\\read git diff};
+
+\end{tikzpicture}
+\caption{The three stages, the two artefact hand-offs between them, and the
+three numbered human approval gates --- one per stage. Solid boxes are AI
+stages; dashed boxes are the artefacts that cross between them. Artefacts are
+the only currency: no state is carried in anyone's head or clipboard.}
+\end{figure}
+
+\noindent A plain-text rendering of the same flow, for readers of the source:
+
+\begin{lstlisting}[style=plain]
+prose request --(gate 1)--> [CHAT: Claude Opus 5]
+                                |
+                                v  Artifact A: docs/features/task-due-dates.md
+                            (a file in the repo)
+                                |
+                            --(gate 2)--> [IDE: Copilot in VS Code]
+                                              |
+                                              v  Artifact B: dirty working tree
+                                          (the filesystem itself)
+                                              |
+                                          --(gate 3)--> [CLI: Claude Code]
+                                                            |
+                                                            v  Artifact C:
+                                                        green log + commit SHA
+                                                            |
+                                                            v  git push / PR
+\end{lstlisting}
+
+% =====================================================================
+\section{Provenance: what was actually executed}
+\label{sec:provenance}
+
+This section exists because the first submission did not have one. Its
+self-assessment presented a mock transcript --- ``44 passed'' --- as objective
+proof that the artefact functioned end to end. Nothing had been run. That claim
+is withdrawn, and the table below replaces it: for each stage, the tool, who
+operated it, what was actually executed, and the file holding the raw output.
+
+\begin{table}[h]
+\centering
+\small
+\begin{tabularx}{\textwidth}{@{}c l l c X@{}}
+\toprule
+\textbf{Stage} & \textbf{Tool} & \textbf{Operator} & \textbf{Status} & \textbf{Captured artefact} \\
+\midrule
+1 & Claude Opus 5 (chat) & assistant, in conversation & \ran &
+  \code{stage1/00..02}, \code{docs/features/\allowbreak task-due-dates.md} \\
+1a & ajv 8 via Node 24 & Claude Code (CLI) & \ran &
+  \code{stage1/02-schema-\allowbreak validation.txt} --- 17/17 cases pass \\
+2 & GitHub Copilot (VS Code) & the author, manually & \notran &
+  \code{stage2/} --- prompt prepared, outputs pending \\
+3 & Claude Code (CLI) & assistant, real shell & \notran &
+  \code{stage3/} --- runs after Stage 2 \\
+\bottomrule
+\end{tabularx}
+\caption{Execution status at the time of writing. \ran{} means a command was
+run and its output captured; \notran{} means exactly that. This table is the
+first thing to update as the remaining stages run, and no claim elsewhere in
+this document may outrun it.}
+\end{table}
+
+\subsection{A limitation stated up front}
+
+Stage 1 and Stage 3 were both performed by Claude, in different interfaces: a
+conversational interaction for the design, and Claude Code with shell access
+for the verification. Two consequences follow, and both count against this
+submission rather than for it:
+
+\begin{itemize}
+  \item \textbf{The Stage 1/Stage 3 UX separation is weaker than a separate
+        chat product would give.} A stricter execution would use an unrelated
+        vendor's chat tool for Stage 1.
+  \item \textbf{Stage 1 was not run in true repository-blind conditions.} The
+        assistant had prior knowledge of this codebase from earlier work on it.
+        The prompt forbade reading or editing the repository during the stage
+        and the resulting spec does leave its bindings as \code{TODO} markers
+        --- but ``had no access'' would be a stronger claim than ``was
+        instructed not to use it'', and only the weaker one is true.
+\end{itemize}
+
+What survives both caveats is the part the brief actually requires: \emph{at
+least two different AI UX types}, chained. Stage 2 (GitHub Copilot, a different
+vendor, in an IDE) and Stage 3 (Claude Code, in a shell) are genuinely
+different tools in genuinely different UX categories, and the artefact that
+crosses between them is the git working tree, which neither vendor controls.
+
+% =====================================================================
+\section{Stage 1 --- Chat UX}
+
+\textbf{Status: \ran.} Artefacts in \code{docs/lab3/artefacts/stage1/}.
+
+\subsection{Input}
+
+The raw prose request in Section~1, plus a short environment card so the draft
+matches reality: Java 21, Maven, JUnit 5, SLF4J, and the project's
+\code{ConsoleApp $\rightarrow$ TaskManager $\rightarrow$ Task} layering
+convention.
+
+\subsection{The prompt}
+
+Recorded verbatim in \code{stage1/01-prompt.txt}. Its operative constraints:
+
+\begin{itemize}
+  \item Produce \emph{one} Markdown document with four fenced sections
+        \emph{in a fixed order with fixed fence languages}, and nothing else.
+  \item Express the conditional rule as a schema \code{if}/\code{then} so it is
+        machine-checkable rather than prose.
+  \item Guard invariants in the constructor, not in the caller.
+  \item Mark assumptions inline as \code{// ASSUMPTION:} comments.
+  \item Do not ask questions; make the reasonable choice and mark it.
+  \item Do not read or edit the repository --- leave bindings as \code{TODO}.
+\end{itemize}
+
+\textbf{Why this prompt shape.} Fixed sections with fixed fence languages turn
+the reply into a \emph{parseable artefact} rather than an essay, which is the
+entire reason the Stage 1 $\rightarrow$ 2 bridge is friction-free: Stage 2 can
+be pointed at ``section 3 of this file'' instead of at a wall of text.
+Forbidding questions stops the stage stalling on clarification before any
+artefact exists; the cost is assumptions, so they are required to be visible
+and can be rejected at the gate. Forbidding repository access keeps the stage
+boundary real --- design first, grounding second --- and the \code{TODO}
+markers are the seam Stage 2 exists to close.
+
+\subsection{Output --- Artifact A}
+
+A single Markdown document, committed at
+\code{docs/features/task-due-dates.md}. Section 1 is the creation contract:
+
+\begin{lstlisting}[style=plain]
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "TaskCreate",
+  "type": "object",
+  "properties": {
+    "name":             { "type": "string", "minLength": 1, "maxLength": 120 },
+    "dueDate":          { "type": ["string","null"], "format": "date" },
+    "remindBeforeDays": { "type": ["integer","null"], "minimum": 0, "maximum": 30 }
+  },
+  "required": ["name"],
+  "additionalProperties": false,
+  "allOf": [
+    { "if":   { "properties": { "remindBeforeDays": { "type": "integer" } },
+                "required":   ["remindBeforeDays"] },
+      "then": { "properties": { "dueDate": { "type": "string" } },
+                "required":   ["dueDate"] } }
+  ]
+}
+\end{lstlisting}
+
+\noindent The \code{if}/\code{then} is the load-bearing clause. It states the
+one rule the prose only implied --- \emph{a reminder makes no sense without a
+due date} --- in a form a machine can check, leaving Stage 2 no room to read it
+as optional. Sections 2--4 of the artefact give the model changes with
+invariants guarded in the constructor, the API surface (an \code{Urgency} enum,
+an \code{AddResult} enum so a duplicate is distinguishable from a success, and
+the \code{TaskManager} signatures) with four \code{TODO(stage-2)} markers, and a
+test outline that names boundary cases rather than happy paths.
+
+\subsection{Stage 1 was checked, not asserted}
+\label{sec:schemacheck}
+
+The first submission's schema was well constructed but unexecuted. This one is
+validated by a committed harness: \code{stage1/check-schema.mjs} extracts the
+schema \emph{out of the delivered artefact} --- not a retyped copy --- compiles
+it under draft 2020-12 in ajv's strict mode, and asserts 17 payloads are
+accepted or rejected as the spec claims, including both directions of the
+conditional rule.
+
+\begin{lstlisting}[style=plain]
+Schema extracted from: docs/features/task-due-dates.md
+  title   = TaskCreate
+  $schema = https://json-schema.org/draft/2020-12/schema
+
+Schema compiles under draft 2020-12 in strict mode: PASS
+
+[PASS] name only                    expected valid   -> due date is optional
+[PASS] name + dueDate + reminder    expected valid   -> reminder with a due date is valid
+[PASS] reminder WITHOUT dueDate     expected invalid -> THE if/then RULE: reminder requires a due date
+[PASS] reminder with null dueDate   expected invalid -> if/then rule holds against explicit null too
+[PASS] reminder = 0 boundary        expected valid   -> lower bound inclusive
+[PASS] reminder = 30 boundary       expected valid   -> upper bound inclusive
+[PASS] reminder = 31                expected invalid -> above maximum
+[PASS] name 120 chars               expected valid   -> maxLength boundary inclusive
+[PASS] unknown property             expected invalid -> additionalProperties false
+   ... 8 further cases ...
+
+17 passed, 0 failed, 17 total
+\end{lstlisting}
+
+\noindent Reproduce with \code{cd docs/lab3/artefacts/stage1 \&\& npm install
+\&\& npm run check}. Full output in \code{stage1/02-schema-validation.txt}.
+
+\subsection{The bridge to Stage 2}
+
+Artifact A is written into the repository at
+\code{docs/features/task-due-dates.md}. The IDE then reads it as an in-repo
+file reference. Nothing is pasted into code at this point --- the file itself is
+the hand-off token, which is what makes the bridge vendor-neutral: any IDE
+assistant that can reference a file in the workspace can consume it.
+
+% =====================================================================
+\section{Stage 2 --- IDE UX}
+
+\textbf{Status: \notran{} at the time of writing.} The prompt is prepared in
+\code{stage2/01-prompt.txt} and the procedure is in \code{docs/lab3/RUNBOOK.md}.
+This section will report what the tool actually did, the diff it produced, and
+any friction encountered. It is left explicitly empty rather than filled with a
+plausible transcript --- writing the expected result before running the stage is
+the specific error this resubmission exists to correct.
+
+\subsection{The prompt (prepared)}
+
+Points Copilot Agent mode at five real files with \code{\#file:} references ---
+the spec plus \code{Task.java}, \code{TaskManager.java}, \code{ConsoleApp.java}
+and \code{TaskManagerTest.java} --- and instructs it to close every
+\code{TODO(stage-2)} marker while reusing the existing layering, logger and
+prompt helper. Three constraints are load-bearing:
+
+\begin{itemize}
+  \item \textbf{``Do not invent classes or introduce new dependencies.''} The
+        failure mode of an IDE agent on an existing codebase is a parallel
+        implementation that compiles but duplicates what is already there.
+  \item \textbf{``Keep the existing \code{boolean addTask(String)} behaving
+        exactly as it does now.''} A regression fence: 69 tests depend on it,
+        and naming the constraint is cheaper than discovering it from a red
+        build.
+  \item \textbf{``Show me the diff before applying anything.''} The single
+        human approval gate for this stage --- what keeps the workflow
+        one decision per stage rather than one per file.
+\end{itemize}
+
+% =====================================================================
+\section{Stage 3 --- CLI UX}
+
+\textbf{Status: \notran{} at the time of writing.} Runs once Stage 2 has left
+changes in the working tree.
+
+\subsection{The prompt (prepared)}
+
+\begin{lstlisting}[style=plain]
+There are uncommitted changes implementing task due dates, duplicate rejection
+and derived urgency. Do the following, and stop if a step cannot be made green
+after two attempts:
+
+  1. Run ./mvnw -B clean verify. Report what failed before changing anything.
+  2. Fix only what is broken, in the changed files only. Do not weaken a test
+     or lower the coverage gate to make the build pass.
+  3. Re-run the full suite to confirm no regressions against the 69 tests that
+     were passing before this feature.
+  4. When everything is green, git add -A and write a Conventional Commits
+     message authored from the actual `git diff --staged`, not from my
+     description. Then print the commit SHA.
+\end{lstlisting}
+
+\noindent \textbf{Why this prompt shape.} The explicit two-attempt stop
+condition means the agent cannot loop indefinitely on a problem that needs a
+human. Scoping fixes to changed files protects the rest of the repository.
+``Do not weaken a test or lower the coverage gate'' forecloses the cheapest way
+to turn a build green, which is exactly the instinct the Agile \& DevOps review
+of this same repository criticised. And deriving the commit message from the
+staged delta rather than from a description guarantees the message describes
+what actually changed.
+
+% =====================================================================
+\section{Adaptability}
+
+The workflow is defined by \emph{role} --- chat, IDE, CLI --- rather than by
+vendor. Two things make that structural rather than asserted:
+
+\begin{enumerate}
+  \item \textbf{Each stage names interchangeable tools.} Chat: Claude, ChatGPT
+        or Gemini. IDE: Copilot, Cursor or JetBrains AI. CLI: Claude Code or
+        Gemini CLI.
+  \item \textbf{No bridge depends on a vendor feature.} A Markdown file in the
+        repository, the git working tree, and a commit. Substituting any tool
+        changes which application receives the prompt and nothing else.
+\end{enumerate}
+
+Swapping the target stack is a change to the environment card in the Stage 1
+prompt --- the stage boundaries and artefact formats are unchanged. That claim
+has one piece of real evidence behind it: this workflow was originally designed
+for a Python FastAPI service and was re-pointed at a Java 21 Maven codebase
+without altering the stage structure, the bridges or the artefact formats. Only
+the environment card and the section 2/3 language changed.
+
+\subsection{Friction log}
+
+Tool friction absorbed \emph{without} redesigning the workflow is the strongest
+available evidence for this criterion, so it is recorded rather than smoothed
+over.
+
+\begin{table}[h]
+\centering
+\small
+\begin{tabularx}{\textwidth}{@{}L{3.4cm} X L{3.6cm}@{}}
+\toprule
+\textbf{Where} & \textbf{What happened} & \textbf{Resolution} \\
+\midrule
+Stage 1 target stack
+  & The original design assumed a Python FastAPI service. No Python
+    interpreter was installed on the machine --- only Microsoft Store
+    execution-alias stubs, which report ``No installed Python found''.
+  & Re-pointed the workflow at the existing Java 21 repository. Stage
+    boundaries and bridges unchanged; only the environment card differed. \\
+\addlinespace
+Stage 1 verification
+  & A JSON Schema is inert on paper, which is how the first submission's went
+    unchecked.
+  & Added an ajv harness that reads the schema out of the delivered artefact.
+    17 cases, both directions of the conditional rule. \\
+\addlinespace
+Stage 2 & \emph{To be completed after the stage runs.} & \\
+\addlinespace
+Stage 3 & \emph{To be completed after the stage runs.} & \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+% =====================================================================
+\section{Efficiency}
+
+\textbf{This section is deliberately thin until the remaining stages run.} The
+first submission claimed a ``3--4 hour baseline collapsing to minutes''. Neither
+number was measured, and the review was right to mark that down. Measured
+figures are recorded in \code{docs/lab3/artefacts/timings.md} as each stage
+runs, and the baseline will be either measured on a comparable slice of work or
+labelled an estimate with its reasoning shown --- not presented as a
+measurement.
+
+What can be stated structurally, without a stopwatch:
+
+\begin{itemize}
+  \item \textbf{Human involvement is three decisions} --- approve the spec,
+        approve the diff, approve the commit --- and no manual retyping between
+        tools. Both hand-offs ride on the filesystem.
+  \item \textbf{The context switch is what is eliminated}, not the typing. The
+        original problem statement identified this correctly: the cost of the
+        manual version is moving between design, code, verify and commit
+        mindsets, not keystrokes.
+  \item \textbf{Stop conditions prevent the classic agentic time sink.} The
+        Stage 3 prompt caps retries at two, so a stuck agent returns to the
+        human instead of burning cycles.
+\end{itemize}
+
+% =====================================================================
+\section{Rubric alignment}
+
+Rewritten from the first submission. The previous version argued its own score
+from a mock transcript; this one cites only captured artefacts, and marks
+criteria that are not yet fully evidenced as exactly that.
+
+\begin{longtable}{@{}L{2.6cm} c L{5.0cm} X@{}}
+\toprule
+\textbf{Criterion} & \textbf{State} & \textbf{Evidence that exists} & \textbf{What is still missing} \\
+\midrule
+\endfirsthead
+\toprule
+\textbf{Criterion} & \textbf{State} & \textbf{Evidence that exists} & \textbf{What is still missing} \\
+\midrule
+\endhead
+\bottomrule
+\endfoot
+Functionality (40\%)
+  & \partly
+  & Stage 1 executed and independently checked: schema compiles under draft
+    2020-12 strict mode, 17/17 contract cases behave as specified
+    (\S\ref{sec:schemacheck}). Artifact A committed in the repository.
+  & Stages 2 and 3 have not run. Until they do, there is no end-to-end claim to
+    make, and none is made. \\
+\addlinespace
+Adaptability (20\%)
+  & \partly
+  & Bridges use only files, the working tree and a commit. One real
+    re-pointing already survived: Python/FastAPI $\rightarrow$ Java/Maven with
+    no change to stage structure or artefact formats.
+  & A tool swap \emph{within} a stage has not yet been forced, which is the
+    stronger form of this evidence. \\
+\addlinespace
+Documentation (20\%)
+  & \ran
+  & Diagram plus plain-text fallback; per-stage Input / Prompt / Output /
+    Bridge structure; every prompt quoted verbatim from the committed file that
+    was actually issued; a runbook stating which artefact each step must leave.
+  & Nothing outstanding, beyond filling the Stage 2--3 sections with real
+    results. \\
+\addlinespace
+Efficiency (20\%)
+  & \notran
+  & Structural argument only: three approval gates, zero retyping, explicit
+    stop conditions.
+  & No measured timings yet, and no measured baseline. Deliberately not
+    asserted --- this is the exact overclaim being corrected. \\
+\end{longtable}
+
+\noindent\textbf{Net position, stated plainly.} Documentation is complete.
+Functionality and Adaptability are partly evidenced, with the executed portion
+identified and the unexecuted portion named. Efficiency is not yet evidenced at
+all. A mock transcript is not proof of anything, and arguing a score from one
+was the wrong instinct; this table is what replaces that.
+
+% =====================================================================
+\section{Reflection}
+
+\textbf{The first submission's real error was not that nothing ran.} It was
+claiming that something had. The design was labelled as illustrative in the
+abstract and again in Section 3, and then the self-assessment matrix cited
+``The Stage 3 test log (44 passed) + mypy Success'' as ``objective proof the
+artifact functions end-to-end''. Those two statements cannot both stand. The
+lesson is narrow and worth keeping: a design document may contain illustrative
+data, but a self-assessment may cite only artefacts that exist. The moment a
+mock is used as evidence it stops being a mock.
+
+\textbf{Designing for a stack you cannot run is a trap the design itself
+hides.} The original targeted FastAPI, Pydantic and Alembic --- a stack with no
+interpreter installed on the machine that produced the document. Nothing in the
+design revealed that, because a design has no build step. Re-pointing at a
+repository that already had 69 tests and a coverage gate meant the workflow
+could be rejected by something other than an author's opinion, which is the
+whole difference between the two submissions.
+
+\textbf{The UX categories in the brief are blurrier than they look.} The chat
+stage was performed by the same model family that later performed the CLI
+stage, and a Copilot agent in an IDE will open a terminal and run a build on
+its own initiative --- functionally a CLI action from inside an IDE tool. The
+honest conclusion is that ``UX type'' describes the interaction surface and the
+tool's access to state, not a clean partition of capability. Section
+\ref{sec:provenance} records that limitation rather than relying on the
+categories to imply a separation that agentic tools have partly dissolved.
+
+\vfill
+\begin{center}
+\small
+\textit{Katy Great Adona\"i --- AmaliTech Training, DEG Apprenticeship ---
+4 September 2026}
+\end{center}
+
+\end{document}
