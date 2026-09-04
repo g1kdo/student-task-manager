@@ -74,3 +74,34 @@ introduced — not from anyone's description of the work.
    with prose inside the ```java fence. Restored, because Artifact A is Stage
    1's output and editing it destroys the record of what Stage 1 produced. The
    prompt ambiguity that caused this is recorded in the friction log.
+
+## Postscript: the pipeline caught what Stage 3 missed
+
+Stage 3 finished green, the commit was pushed, and **CI failed**.
+
+The feature changed the console interaction contract: adding a task now prompts
+for two optional fields, so each add consumes four lines of stdin instead of
+two. The pipeline's smoke-test step drives the packaged jar with a fixed
+keystroke sequence, which had gone stale — the app read `2`, intended as the
+"view tasks" menu choice, as a due date:
+
+```
+Enter your choice: Task name: Due date (YYYY-MM-DD, optional): The due date
+must be a valid date in YYYY-MM-DD format. Nothing was added.
+```
+
+The application was right; the test was stale. But **Stage 3 as prompted could
+not have caught this**, because `mvnw clean verify` does not run the smoke test.
+That step exists only in the pipeline, and it is the only check that drives the
+built artefact the way a user would.
+
+This revises the workflow's own design claim. Stage 3 is meant to be where
+"execute, observe, react" happens — but the prompt scoped it to one command,
+and one command was not the whole verification. The corrected prompt should say
+*run every check the pipeline runs*, not *run the build*.
+
+Fixed and extended: the smoke test now also asserts end-to-end duplicate
+rejection and urgency rendering, with the urgency assertion matching the set
+`[OVERDUE|DUE_TODAY|UPCOMING|NONE]` rather than a fixed value so it does not
+rot as the calendar passes the test's due date. Verified locally: 10/10
+assertions pass.

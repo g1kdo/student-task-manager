@@ -684,6 +684,39 @@ file list, the public signatures actually added and the test method names
 actually introduced --- not from a description of the intended work. The
 ``69 to 84'' figure in it is read off the two build logs, not asserted.
 
+\subsection{And then the pipeline caught what Stage 3 missed}
+
+Stage 3 finished green and the commit was pushed --- and \emph{CI failed}. The
+feature had changed the console interaction contract: adding a task now prompts
+for two optional fields, so each add consumes four lines of input instead of
+two. The pipeline's smoke-test step drives the packaged jar over stdin with a
+fixed keystroke sequence, and that sequence had gone stale. The application
+read \code{2} --- intended as the ``view tasks'' menu choice --- as a due date:
+
+\begin{lstlisting}[style=plain]
+Enter your choice: Task name: Due date (YYYY-MM-DD, optional): The due date
+must be a valid date in YYYY-MM-DD format. Nothing was added.
+\end{lstlisting}
+
+\noindent The application behaved correctly: it rejected the bad date, said so,
+and returned to the menu. The \emph{test} was wrong. But nothing in Stage 3 as
+prompted could have found this, because \code{mvnw clean verify} does not run
+the smoke test --- that step exists only in the pipeline, and it is the only
+check that drives the built artefact the way a user would.
+
+This is worth stating plainly rather than hiding, because it revises the
+workflow's own design claim. Section~2 argues the CLI stage is where
+\emph{execute, observe, react} belongs. That is right, but the Stage 3 prompt
+scoped it to one command, and one command was not the whole verification. A
+better prompt would say \emph{run every check the pipeline runs}, not
+\emph{run the build}.
+
+The smoke test was corrected --- and extended, since it was already being
+touched: it now also asserts that a duplicate is rejected end-to-end and that
+urgency renders in the list. The urgency assertion matches the set
+\code{[OVERDUE|DUE\_TODAY|UPCOMING|NONE]} rather than a specific value, so it
+does not rot as the calendar passes the test's due date.
+
 \subsection{Deviations, recorded}
 
 \begin{enumerate}

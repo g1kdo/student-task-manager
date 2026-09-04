@@ -40,18 +40,39 @@ jobs:
       # just built actually runs, not merely that it compiled.
       - name: Smoke-test the packaged application
         run: |
-          printf '1\nWrite sprint report\n2\n3\n1\n2\n5\n6\n' \
-            | java -jar target/student-task-manager.jar > smoke.out 2>&1
+          # Adding a task now prompts for two optional fields, so each add
+          # consumes four lines: choice, name, due date, reminder lead time.
+          # An empty line means "not set".
+          {
+            printf '1\nWrite sprint report\n\n\n'      # add, no due date
+            printf '1\nSubmit essay\n2026-09-30\n2\n'  # add, with due date + reminder
+            printf '1\nwrite sprint report\n\n\n'      # duplicate, different case
+            printf '2\n'                               # list
+            printf '3\n1\n'                            # complete task 1
+            printf '2\n'                               # list again
+            printf '5\n'                               # health check
+            printf '6\n'                               # exit
+          } | java -jar target/student-task-manager.jar > smoke.out 2>&1
           echo '----- application output -----'
           cat smoke.out
           echo '------------------------------'
           fail() { echo "::error::$1"; exit 1; }
           grep -q 'Task added'           smoke.out || fail 'add task did not confirm'
           grep -q 'Write sprint report'  smoke.out || fail 'task list did not render the task'
+          grep -q 'Submit essay'         smoke.out || fail 'task with a due date was not stored'
+          grep -q 'already exists'       smoke.out || fail 'duplicate was not rejected'
           grep -q 'Task completed'       smoke.out || fail 'complete task did not confirm'
           grep -q 'status=UP'            smoke.out || fail 'health check did not report UP'
+          # Urgency must render. Matched as a set rather than a specific value,
+          # so the assertion does not rot as the calendar passes the due date.
+          grep -qE '\[(OVERDUE|DUE_TODAY|UPCOMING|NONE)\]' smoke.out \
+            || fail 'urgency was not rendered in the task list'
+          grep -q '\[NONE\]'             smoke.out || fail 'a task with no due date should show NONE'
           if grep -qi 'not a valid choice' smoke.out; then
             fail 'the menu rejected valid input (stale newline regression)'
+          fi
+          if grep -qi 'must be a valid date' smoke.out; then
+            fail 'a scripted input was misread as a due date (prompt/keystroke desync)'
           fi
           echo 'Smoke test passed.'
 
