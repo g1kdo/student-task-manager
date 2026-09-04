@@ -1,0 +1,32 @@
+Test run evidence - Student Task Manager
+Command: ./mvnw -B clean verify
+Date:    2026-09-04 09:03:32 UTC
+Java:    java version "21.0.8" 2025-07-15 LTS
+
+[INFO] --- jacoco:0.8.12:prepare-agent (prepare-agent) @ student-task-manager ---
+[INFO] argLine set to -javaagent:C:\\Users\\USER\\.m2\\repository\\org\\jacoco\\org.jacoco.agent\\0.8.12\\org.jacoco.agent-0.8.12-runtime.jar=destfile=C:\\Users\\USER\\IdeaProjects\\student-task-manager\\target\\jacoco.exec,excludes=examples/**:app/Main.class
+[INFO]  T E S T S
+[INFO] Running app.ConsoleAppTest
+[INFO] Tests run: 19, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 1.346 s -- in app.ConsoleAppTest
+[INFO] Running app.HealthCheckTest
+[INFO] Tests run: 9, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.149 s -- in app.HealthCheckTest
+[INFO] Running app.TaskManagerTest
+[INFO] Running app.TaskManagerTest$DeleteTask
+[INFO] Tests run: 9, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.523 s -- in app.TaskManagerTest$DeleteTask
+[INFO] Running app.TaskManagerTest$CompleteTask
+[INFO] Tests run: 9, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.134 s -- in app.TaskManagerTest$CompleteTask
+[INFO] Running app.TaskManagerTest$ViewTasks
+[INFO] Tests run: 3, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.043 s -- in app.TaskManagerTest$ViewTasks
+[INFO] Running app.TaskManagerTest$AddTask
+[INFO] Tests run: 9, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.107 s -- in app.TaskManagerTest$AddTask
+[INFO] Tests run: 0, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.833 s -- in app.TaskManagerTest
+[INFO] Running app.TaskTest
+[INFO] Tests run: 11, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.093 s -- in app.TaskTest
+[INFO] Tests run: 69, Failures: 0, Errors: 0, Skipped: 0
+[INFO] --- jacoco:0.8.12:report (report) @ student-task-manager ---
+[INFO] Loading execution data file C:\Users\USER\IdeaProjects\student-task-manager\target\jacoco.exec
+[INFO] --- jacoco:0.8.12:check (check-coverage) @ student-task-manager ---
+[INFO] Loading execution data file C:\Users\USER\IdeaProjects\student-task-manager\target\jacoco.exec
+[INFO] All coverage checks have been met.
+[INFO] BUILD SUCCESS
+[INFO] Total time:  25.210 s
