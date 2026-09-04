@@ -1,0 +1,634 @@
+# Stage 2 output - working-tree diff produced by GitHub Copilot (Agent mode, VS Code)
+# Captured: 2026-09-04 15:18:34 UTC - final state, after the tree settled
+# Base commit: d79e2e92f142820818bc0105986a702cf37ce3f0
+#
+# Two deviations from the raw Stage 2 output are recorded in 04-notes.md:
+#  - Copilot also edited Artifact A (docs/features/task-due-dates.md),
+#    replacing the TODO(stage-2) markers with prose inside the java fence.
+#    Restored, because Artifact A is Stage 1's output and editing it
+#    destroys the provenance of what Stage 1 produced.
+#  - One test assertion was corrected in Stage 3; see stage3/.
+#
+diff --git a/src/main/java/app/AddResult.java b/src/main/java/app/AddResult.java
+new file mode 100644
+index 0000000..64a9adc
+--- /dev/null
++++ b/src/main/java/app/AddResult.java
+@@ -0,0 +1,7 @@
++package app;
++
++public enum AddResult {
++    ADDED,
++    REJECTED_DUPLICATE,
++    REJECTED_INVALID
++}
+diff --git a/src/main/java/app/ConsoleApp.java b/src/main/java/app/ConsoleApp.java
+index 242aab8..fac7fc0 100644
+--- a/src/main/java/app/ConsoleApp.java
++++ b/src/main/java/app/ConsoleApp.java
+@@ -6,6 +6,9 @@ import java.io.InputStream;
+ import java.io.InputStreamReader;
+ import java.io.PrintStream;
+ import java.nio.charset.StandardCharsets;
++import java.time.Clock;
++import java.time.LocalDate;
++import java.time.format.DateTimeParseException;
+ import java.util.List;
+ import org.slf4j.Logger;
+ import org.slf4j.LoggerFactory;
+@@ -33,12 +36,19 @@ public class ConsoleApp {
+     private final PrintStream out;
+     private final TaskManager manager;
+     private final HealthCheck healthCheck;
++    private final Clock clock;
+ 
+     public ConsoleApp(InputStream in, PrintStream out, TaskManager manager, HealthCheck healthCheck) {
++        this(in, out, manager, healthCheck, Clock.systemDefaultZone());
++    }
++
++    public ConsoleApp(InputStream in, PrintStream out, TaskManager manager,
++            HealthCheck healthCheck, Clock clock) {
+         this.in = new BufferedReader(new InputStreamReader(in, StandardCharsets.UTF_8));
+         this.out = out;
+         this.manager = manager;
+         this.healthCheck = healthCheck;
++        this.clock = clock;
+     }
+ 
+     public ConsoleApp(InputStream in, PrintStream out, TaskManager manager) {
+@@ -107,8 +117,27 @@ public class ConsoleApp {
+         if (name == null) {
+             return false;
+         }
+-        if (manager.addTask(name)) {
++        String dueDateInput = prompt("Due date (YYYY-MM-DD, optional): ");
++        if (dueDateInput == null) {
++            dueDateInput = "";
++        }
++        LocalDate dueDate = parseDueDate(dueDateInput);
++        if (!dueDateInput.trim().isEmpty() && dueDate == null) {
++            return true;
++        }
++        String reminderInput = prompt("Remind before days (0-30, optional): ");
++        if (reminderInput == null) {
++            reminderInput = "";
++        }
++        Integer remindBeforeDays = parseReminderDays(reminderInput);
++        if (!reminderInput.trim().isEmpty() && remindBeforeDays == null) {
++            return true;
++        }
++        AddResult result = manager.addTask(name, dueDate, remindBeforeDays);
++        if (result == AddResult.ADDED) {
+             out.println("Task added.");
++        } else if (result == AddResult.REJECTED_DUPLICATE) {
++            out.println("A task with that name already exists. Nothing was added.");
+         } else {
+             out.println("A task needs a name. Nothing was added.");
+         }
+@@ -126,7 +155,9 @@ public class ConsoleApp {
+         for (int i = 0; i < tasks.size(); i++) {
+             Task task = tasks.get(i);
+             out.printf("  %d. %-30s %s%n",
+-                    i + 1, task.getName(), task.isCompleted() ? "[Done]" : "[Pending]");
++                    i + 1, task.getName(),
++                    (task.isCompleted() ? "[Done]" : "[Pending]")
++                            + " [" + task.urgencyOn(LocalDate.now(clock)) + "]");
+         }
+         out.printf("  %d of %d complete.%n", manager.getCompletedCount(), tasks.size());
+     }
+@@ -223,6 +254,34 @@ public class ConsoleApp {
+         out.println();
+     }
+ 
++    private LocalDate parseDueDate(String raw) {
++        String trimmed = raw.trim();
++        if (trimmed.isEmpty()) {
++            return null;
++        }
++        try {
++            return LocalDate.parse(trimmed);
++        } catch (DateTimeParseException e) {
++            out.println("The due date must be a valid date in YYYY-MM-DD format. Nothing was added.");
++            log.warn("Rejected invalid due date: {}", quote(trimmed));
++            return null;
++        }
++    }
++
++    private Integer parseReminderDays(String raw) {
++        String trimmed = raw.trim();
++        if (trimmed.isEmpty()) {
++            return null;
++        }
++        try {
++            return Integer.valueOf(trimmed);
++        } catch (NumberFormatException e) {
++            out.println("Reminder days must be a whole number from 0 to 30. Nothing was added.");
++            log.warn("Rejected invalid reminder lead time: {}", quote(trimmed));
++            return null;
++        }
++    }
++
+     private static String quote(String value) {
+         return "'" + value + "'";
+     }
+diff --git a/src/main/java/app/Task.java b/src/main/java/app/Task.java
+index 9089457..6e5a0f5 100644
+--- a/src/main/java/app/Task.java
++++ b/src/main/java/app/Task.java
+@@ -1,6 +1,8 @@
+ package app;
+ 
+ import java.time.Instant;
++import java.time.LocalDate;
++import java.util.Optional;
+ 
+ /**
+  * A single student task: a name, the moment it was created, and whether it has
+@@ -14,6 +16,8 @@ public class Task {
+ 
+     private final String name;
+     private final Instant createdAt;
++    private final LocalDate dueDate;
++    private final Integer remindBeforeDays;
+     private boolean completed;
+ 
+     /**
+@@ -21,14 +25,58 @@ public class Task {
+      * @throws IllegalArgumentException if {@code name} is null or blank
+      */
+     public Task(String name) {
++        this(name, null, null);
++    }
++
++    public Task(String name, LocalDate dueDate, Integer remindBeforeDays) {
+         if (name == null || name.isBlank()) {
+             throw new IllegalArgumentException("Task name must not be blank");
+         }
+-        this.name = name.trim();
++        String trimmed = name.trim();
++        if (trimmed.length() > 120) {
++            throw new IllegalArgumentException("Task name must be 120 characters or fewer");
++        }
++        if (remindBeforeDays != null && dueDate == null) {
++            throw new IllegalArgumentException("remindBeforeDays requires a dueDate");
++        }
++        if (remindBeforeDays != null && (remindBeforeDays < 0 || remindBeforeDays > 30)) {
++            throw new IllegalArgumentException("remindBeforeDays must be between 0 and 30");
++        }
++        this.name = trimmed;
+         this.createdAt = Instant.now();
++        this.dueDate = dueDate;
++        this.remindBeforeDays = remindBeforeDays;
+         this.completed = false;
+     }
+ 
++    public Optional<LocalDate> getDueDate() {
++        return Optional.ofNullable(dueDate);
++    }
++
++    public Optional<Integer> getRemindBeforeDays() {
++        return Optional.ofNullable(remindBeforeDays);
++    }
++
++    public Urgency urgencyOn(LocalDate today) {
++        if (dueDate == null) {
++            return Urgency.NONE;
++        }
++        if (dueDate.isBefore(today)) {
++            return Urgency.OVERDUE;
++        }
++        if (dueDate.isEqual(today)) {
++            return Urgency.DUE_TODAY;
++        }
++        return Urgency.UPCOMING;
++    }
++
++    public boolean needsReminderOn(LocalDate today) {
++        if (completed || dueDate == null || remindBeforeDays == null) {
++            return false;
++        }
++        return !today.isBefore(dueDate.minusDays(remindBeforeDays)) && !today.isAfter(dueDate);
++    }
++
+     public String getName() {
+         return name;
+     }
+diff --git a/src/main/java/app/TaskManager.java b/src/main/java/app/TaskManager.java
+index 86a8468..5603060 100644
+--- a/src/main/java/app/TaskManager.java
++++ b/src/main/java/app/TaskManager.java
+@@ -1,8 +1,11 @@
+ package app;
+ 
++import java.time.LocalDate;
+ import java.util.ArrayList;
+ import java.util.Collections;
++import java.util.Comparator;
+ import java.util.List;
++import java.util.Locale;
+ import org.slf4j.Logger;
+ import org.slf4j.LoggerFactory;
+ 
+@@ -41,6 +44,38 @@ public class TaskManager {
+         }
+     }
+ 
++    public AddResult addTask(String name, LocalDate dueDate, Integer remindBeforeDays) {
++        final Task task;
++        try {
++            task = new Task(name, dueDate, remindBeforeDays);
++        } catch (IllegalArgumentException e) {
++            log.warn("Rejected task details: {}", e.getMessage());
++            return AddResult.REJECTED_INVALID;
++        }
++        if (hasTaskNamed(task.getName())) {
++            log.warn("Rejected duplicate task: '{}'", task.getName());
++            return AddResult.REJECTED_DUPLICATE;
++        }
++        tasks.add(task);
++        log.info("Task added: '{}' (total now {})", task.getName(), tasks.size());
++        return AddResult.ADDED;
++    }
++
++    public boolean hasTaskNamed(String name) {
++        if (name == null) {
++            return false;
++        }
++        String normalized = normalizeName(name);
++        return tasks.stream().anyMatch(task -> normalizeName(task.getName()).equals(normalized));
++    }
++
++    public List<Task> tasksNeedingReminder(LocalDate today) {
++        return tasks.stream()
++                .filter(task -> task.needsReminderOn(today))
++                .sorted(Comparator.comparing(task -> task.getDueDate().orElseThrow()))
++                .toList();
++    }
++
+     /**
+      * @return every task in insertion order, as an unmodifiable view — callers
+      *         read the list but cannot bypass the operations on this class to
+@@ -106,4 +141,8 @@ public class TaskManager {
+     private boolean isValidIndex(int index) {
+         return index >= 0 && index < tasks.size();
+     }
++
++    private static String normalizeName(String name) {
++        return name.trim().toLowerCase(Locale.ROOT);
++    }
+ }
+diff --git a/src/main/java/app/Urgency.java b/src/main/java/app/Urgency.java
+new file mode 100644
+index 0000000..322fa5e
+--- /dev/null
++++ b/src/main/java/app/Urgency.java
+@@ -0,0 +1,8 @@
++package app;
++
++public enum Urgency {
++    OVERDUE,
++    DUE_TODAY,
++    UPCOMING,
++    NONE
++}
+diff --git a/src/test/java/app/ConsoleAppTest.java b/src/test/java/app/ConsoleAppTest.java
+index 7104e2e..87d9f2a 100644
+--- a/src/test/java/app/ConsoleAppTest.java
++++ b/src/test/java/app/ConsoleAppTest.java
+@@ -9,7 +9,10 @@ import java.io.ByteArrayInputStream;
+ import java.io.ByteArrayOutputStream;
+ import java.io.PrintStream;
+ import java.nio.charset.StandardCharsets;
++import java.time.Clock;
+ import java.time.Duration;
++import java.time.Instant;
++import java.time.ZoneOffset;
+ import org.junit.jupiter.api.DisplayName;
+ import org.junit.jupiter.api.Test;
+ 
+@@ -37,6 +40,10 @@ class ConsoleAppTest {
+      * forever, and this should fail the build rather than hang it.
+      */
+     private static Session run(String... keystrokes) {
++        return runAt(Clock.systemDefaultZone(), keystrokes);
++    }
++
++    private static Session runAt(Clock clock, String... keystrokes) {
+         String input = String.join("\n", keystrokes) + "\n";
+         TaskManager manager = new TaskManager();
+         ByteArrayOutputStream captured = new ByteArrayOutputStream();
+@@ -45,7 +52,7 @@ class ConsoleAppTest {
+                 new ConsoleApp(
+                         new ByteArrayInputStream(input.getBytes(StandardCharsets.UTF_8)),
+                         new PrintStream(captured, true, StandardCharsets.UTF_8),
+-                        manager).run());
++                        manager, new HealthCheck(manager), clock).run());
+ 
+         return new Session(captured.toString(StandardCharsets.UTF_8), manager);
+     }
+@@ -60,7 +67,7 @@ class ConsoleAppTest {
+         // The old code read the task number with Scanner.nextInt(), which left
+         // the newline in the buffer; the loop's next nextLine() then returned
+         // an empty string and the menu printed 'Input a valid digit'.
+-        Session session = run("1", "Revise", "3", "1", "2", "6");
++        Session session = run("1", "Revise", "", "", "3", "1", "2", "6");
+ 
+         assertFalse(session.printed("is not a valid choice"),
+                 "the menu must not reject the input that follows a task number");
+@@ -73,7 +80,7 @@ class ConsoleAppTest {
+     @Test
+     @DisplayName("REGRESSION: deleting a task does not make the next menu read fail")
+     void deletingATaskDoesNotBreakTheNextMenuRead() {
+-        Session session = run("1", "Revise", "4", "1", "2", "6");
++        Session session = run("1", "Revise", "", "", "4", "1", "2", "6");
+ 
+         assertFalse(session.printed("is not a valid choice"));
+         assertTrue(session.printed("Task deleted."));
+@@ -128,7 +135,7 @@ class ConsoleAppTest {
+     @Test
+     @DisplayName("the loop exits cleanly when the input ends without an explicit exit")
+     void endOfInputExitsCleanly() {
+-        Session session = run("1", "Revise");
++        Session session = run("1", "Revise", "", "");
+ 
+         assertTrue(session.printed("Input ended. Exiting."));
+         assertEquals(1, session.manager().getTaskCount(), "the work done before EOF stands");
+@@ -141,7 +148,7 @@ class ConsoleAppTest {
+     @Test
+     @DisplayName("adding a task confirms it and stores it")
+     void addingATaskConfirmsAndStores() {
+-        Session session = run("1", "Finish assessment", "6");
++        Session session = run("1", "Finish assessment", "", "", "6");
+ 
+         assertTrue(session.printed("Task added."));
+         assertEquals(1, session.manager().getTaskCount());
+@@ -151,7 +158,7 @@ class ConsoleAppTest {
+     @Test
+     @DisplayName("an empty task name is refused and nothing is stored")
+     void emptyTaskNameIsRefused() {
+-        Session session = run("1", "   ", "6");
++        Session session = run("1", "   ", "", "", "6");
+ 
+         assertTrue(session.printed("A task needs a name. Nothing was added."));
+         assertEquals(0, session.manager().getTaskCount());
+@@ -170,7 +177,7 @@ class ConsoleAppTest {
+     @Test
+     @DisplayName("the list numbers tasks from one and shows each status")
+     void listShowsNumbersAndStatuses() {
+-        Session session = run("1", "Alpha", "1", "Beta", "3", "1", "2", "6");
++        Session session = run("1", "Alpha", "", "", "1", "Beta", "", "", "3", "1", "2", "6");
+ 
+         assertTrue(session.printed("1. Alpha"));
+         assertTrue(session.printed("2. Beta"));
+@@ -179,6 +186,19 @@ class ConsoleAppTest {
+         assertTrue(session.printed("1 of 2 complete."));
+     }
+ 
++    @Test
++    @DisplayName("adding optional dates and viewing tasks shows derived urgency")
++    void optionalFieldsAndUrgencyAreShown() {
++        Session session = runAt(
++                Clock.fixed(Instant.parse("2026-09-30T10:00:00Z"), ZoneOffset.UTC),
++                "1", "Due today", "2026-09-30", "0", "2", "6");
++
++        assertEquals("Due today", session.manager().getTasks().get(0).getName());
++        assertEquals("2026-09-30",
++                session.manager().getTasks().get(0).getDueDate().orElseThrow().toString());
++        assertTrue(session.printed("DUE_TODAY"));
++    }
++
+     // ---------------------------------------------------------------------
+     // US3 / US4 - Complete and delete
+     // ---------------------------------------------------------------------
+@@ -196,7 +216,7 @@ class ConsoleAppTest {
+     @Test
+     @DisplayName("an out-of-range task number is reported without touching the task")
+     void outOfRangeTaskNumberIsReported() {
+-        Session session = run("1", "Revise", "3", "9", "6");
++        Session session = run("1", "Revise", "", "", "3", "9", "6");
+ 
+         assertTrue(session.printed("Task 9 was not found"));
+         assertFalse(session.manager().isTaskCompleted(0), "the real task is untouched");
+@@ -205,7 +225,7 @@ class ConsoleAppTest {
+     @Test
+     @DisplayName("a non-numeric task number is reported and the loop continues")
+     void nonNumericTaskNumberIsReported() {
+-        Session session = run("1", "Revise", "4", "abc", "2", "6");
++        Session session = run("1", "Revise", "", "", "4", "abc", "2", "6");
+ 
+         assertTrue(session.printed("'abc' is not a task number."));
+         assertEquals(1, session.manager().getTaskCount(), "nothing was deleted");
+@@ -215,7 +235,7 @@ class ConsoleAppTest {
+     @Test
+     @DisplayName("task number zero is reported rather than wrapping to the last task")
+     void taskNumberZeroIsReported() {
+-        Session session = run("1", "Revise", "3", "0", "6");
++        Session session = run("1", "Revise", "", "", "3", "0", "6");
+ 
+         assertTrue(session.printed("Task 0 was not found"));
+         assertFalse(session.manager().isTaskCompleted(0));
+@@ -224,7 +244,7 @@ class ConsoleAppTest {
+     @Test
+     @DisplayName("completing the same task twice reports it, and the count does not double")
+     void completingTwiceIsReported() {
+-        Session session = run("1", "Revise", "3", "1", "3", "1", "2", "6");
++        Session session = run("1", "Revise", "", "", "3", "1", "3", "1", "2", "6");
+ 
+         assertTrue(session.printed("already complete"));
+         assertEquals(1, session.manager().getCompletedCount());
+@@ -234,7 +254,7 @@ class ConsoleAppTest {
+     @Test
+     @DisplayName("deleting removes the task and renumbers the remainder")
+     void deletingRenumbersTheRemainder() {
+-        Session session = run("1", "Alpha", "1", "Beta", "4", "1", "2", "6");
++        Session session = run("1", "Alpha", "", "", "1", "Beta", "", "", "4", "1", "2", "6");
+ 
+         assertTrue(session.printed("Task deleted."));
+         assertEquals(1, session.manager().getTaskCount());
+@@ -248,7 +268,8 @@ class ConsoleAppTest {
+     @Test
+     @DisplayName("the health check reports live state, not a fixed string")
+     void healthCheckReportsLiveState() {
+-        Session session = run("1", "Revise", "1", "Submit", "3", "1", "5", "6");
++        Session session = run("1", "Revise", "", "", "1", "Submit", "", "",
++                "3", "1", "5", "6");
+ 
+         assertTrue(session.printed("status=UP"));
+         assertTrue(session.printed("tasks=2"), "the reported count must follow real state");
+@@ -267,9 +288,9 @@ class ConsoleAppTest {
+     @DisplayName("a full session across all five stories leaves the expected state")
+     void fullSessionAcrossEveryStory() {
+         Session session = run(
+-                "1", "Read chapter 1",    // US1
+-                "1", "Write summary",     // US1
+-                "1", "Submit assignment", // US1
++                "1", "Read chapter 1", "", "",    // US1
++                "1", "Write summary", "", "",     // US1
++                "1", "Submit assignment", "", "", // US1
+                 "2",                      // US2
+                 "3", "2",                 // US3
+                 "4", "1",                 // US4
+diff --git a/src/test/java/app/TaskManagerTest.java b/src/test/java/app/TaskManagerTest.java
+index 7bad926..5fb401a 100644
+--- a/src/test/java/app/TaskManagerTest.java
++++ b/src/test/java/app/TaskManagerTest.java
+@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
+ import static org.junit.jupiter.api.Assertions.assertThrows;
+ import static org.junit.jupiter.api.Assertions.assertTrue;
+ 
++import java.time.LocalDate;
+ import java.util.List;
+ import org.junit.jupiter.api.BeforeEach;
+ import org.junit.jupiter.api.DisplayName;
+@@ -77,6 +78,66 @@ class TaskManagerTest {
+ 
+             assertEquals("Revise chapter 4", manager.getTasks().get(0).getName());
+         }
++
++        @Test
++        @DisplayName("the overloaded add reports invalid contract values")
++        void addReportsInvalidValues() {
++            assertEquals(AddResult.REJECTED_INVALID, manager.addTask(null, null, null));
++            assertEquals(AddResult.REJECTED_INVALID, manager.addTask("   ", null, null));
++            assertEquals(AddResult.REJECTED_INVALID,
++                    manager.addTask("a".repeat(121), null, null));
++            assertEquals(AddResult.REJECTED_INVALID,
++                    manager.addTask("Reminder", null, 1));
++            assertEquals(AddResult.REJECTED_INVALID,
++                    manager.addTask("Reminder", LocalDate.of(2026, 9, 30), 31));
++            assertEquals(AddResult.ADDED,
++                    manager.addTask("Valid", LocalDate.of(2026, 9, 30), 0));
++        }
++
++        @Test
++        @DisplayName("duplicates ignore case and surrounding whitespace")
++        void duplicateNamesAreRejected() {
++            assertEquals(AddResult.ADDED, manager.addTask(" Revise Maths ", null, null));
++            assertEquals(AddResult.REJECTED_DUPLICATE,
++                    manager.addTask("revise maths", LocalDate.of(2026, 9, 30), null));
++            assertEquals(1, manager.getTaskCount());
++            assertTrue(manager.hasTaskNamed("  REVISE MATHS "));
++        }
++
++        @Test
++        @DisplayName("a deleted name can be added again")
++        void deletedNameCanBeReused() {
++            manager.addTask("Revise");
++            manager.deleteTask(0);
++
++            assertEquals(AddResult.ADDED, manager.addTask("revise", null, null));
++        }
++
++        @Test
++        @DisplayName("reminders are returned in due-date order")
++        void remindersAreSortedByDueDate() {
++            // Both tasks must actually be inside their reminder window on the
++            // date under test, or this asserts filtering rather than ordering.
++            // "Later" is due 2026-10-02 with 4 days' lead, so its window is
++            // [2026-09-28, 2026-10-02] and includes the date below; "Sooner" is
++            // due 2026-09-28 with 3 days' lead, window [2026-09-25, 2026-09-28].
++            manager.addTask("Later", LocalDate.of(2026, 10, 2), 4);
++            manager.addTask("Sooner", LocalDate.of(2026, 9, 28), 3);
++
++            assertEquals(List.of("Sooner", "Later"),
++                    manager.tasksNeedingReminder(LocalDate.of(2026, 9, 28))
++                            .stream().map(Task::getName).toList());
++        }
++
++        @Test
++        @DisplayName("a task outside its reminder window is filtered out")
++        void remindersExcludeTasksOutsideTheirWindow() {
++            // The case the ordering test above was accidentally asserting.
++            manager.addTask("Not yet", LocalDate.of(2026, 10, 2), 2);
++
++            assertTrue(manager.tasksNeedingReminder(LocalDate.of(2026, 9, 28)).isEmpty(),
++                    "2026-09-28 is before the [2026-09-30, 2026-10-02] window");
++        }
+     }
+ 
+     @Nested
+diff --git a/src/test/java/app/TaskTest.java b/src/test/java/app/TaskTest.java
+index 9d0da46..6edf866 100644
+--- a/src/test/java/app/TaskTest.java
++++ b/src/test/java/app/TaskTest.java
+@@ -6,6 +6,8 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
+ import static org.junit.jupiter.api.Assertions.assertTrue;
+ 
+ import java.time.Instant;
++import java.time.LocalDate;
++import java.util.Optional;
+ import org.junit.jupiter.api.DisplayName;
+ import org.junit.jupiter.api.Test;
+ import org.junit.jupiter.params.ParameterizedTest;
+@@ -44,6 +46,71 @@ class TaskTest {
+         assertEquals("Submit report", new Task("   Submit report \t ").getName());
+     }
+ 
++    @Test
++    @DisplayName("due date and reminder lead time are stored when provided")
++    void optionalFieldsAreStored() {
++        Task task = new Task("Revise", LocalDate.of(2026, 9, 30), 3);
++
++        assertEquals(Optional.of(LocalDate.of(2026, 9, 30)), task.getDueDate());
++        assertEquals(Optional.of(3), task.getRemindBeforeDays());
++    }
++
++    @Test
++    @DisplayName("a name longer than 120 characters is refused")
++    void longNameIsRefused() {
++        assertThrows(IllegalArgumentException.class, () -> new Task("a".repeat(121)));
++    }
++
++    @Test
++    @DisplayName("a reminder requires a due date")
++    void reminderRequiresDueDate() {
++        assertThrows(IllegalArgumentException.class, () -> new Task("Revise", null, 1));
++    }
++
++    @ParameterizedTest
++    @ValueSource(ints = {-1, 31})
++    @DisplayName("a reminder lead time outside 0 to 30 is refused")
++    void reminderLeadTimeMustBeBounded(int days) {
++        assertThrows(IllegalArgumentException.class,
++                () -> new Task("Revise", LocalDate.of(2026, 9, 30), days));
++    }
++
++    @ParameterizedTest
++    @ValueSource(ints = {0, 30})
++    @DisplayName("a reminder lead time from 0 to 30 is accepted")
++    void reminderLeadTimeBoundariesAreAccepted(int days) {
++        assertEquals(Optional.of(days),
++                new Task("Revise", LocalDate.of(2026, 9, 30), days).getRemindBeforeDays());
++    }
++
++    @Test
++    @DisplayName("urgency is derived from the date supplied by the caller")
++    void urgencyIsDerivedFromToday() {
++        Task task = new Task("Revise", LocalDate.of(2026, 9, 30), null);
++
++        assertEquals(Urgency.DUE_TODAY, task.urgencyOn(LocalDate.of(2026, 9, 30)));
++        assertEquals(Urgency.OVERDUE, task.urgencyOn(LocalDate.of(2026, 10, 1)));
++        assertEquals(Urgency.UPCOMING, task.urgencyOn(LocalDate.of(2026, 9, 29)));
++        assertEquals(Urgency.NONE, new Task("No date").urgencyOn(LocalDate.of(2026, 9, 30)));
++    }
++
++    @Test
++    @DisplayName("reminders use inclusive boundaries and ignore completed tasks")
++    void remindersUseInclusiveBoundaries() {
++        Task task = new Task("Revise", LocalDate.of(2026, 9, 30), 3);
++
++        assertTrue(task.needsReminderOn(LocalDate.of(2026, 9, 27)));
++        assertFalse(task.needsReminderOn(LocalDate.of(2026, 9, 26)));
++        assertTrue(task.needsReminderOn(LocalDate.of(2026, 9, 30)));
++        assertFalse(task.needsReminderOn(LocalDate.of(2026, 10, 1)));
++        task.complete();
++        assertFalse(task.needsReminderOn(LocalDate.of(2026, 9, 30)));
++
++        Task sameDay = new Task("Submit", LocalDate.of(2026, 9, 30), 0);
++        assertFalse(sameDay.needsReminderOn(LocalDate.of(2026, 9, 29)));
++        assertTrue(sameDay.needsReminderOn(LocalDate.of(2026, 9, 30)));
++    }
++
+     @Test
+     @DisplayName("completing a pending task reports the change")
+     void completeReportsTheChange() {

@@ -1,0 +1,12 @@
+ M docs/lab3/artefacts/stage2/00-base-commit.txt
+ A src/main/java/app/AddResult.java
+ M src/main/java/app/ConsoleApp.java
+ M src/main/java/app/Task.java
+ M src/main/java/app/TaskManager.java
+ A src/main/java/app/Urgency.java
+ M src/test/java/app/ConsoleAppTest.java
+ M src/test/java/app/TaskManagerTest.java
+ M src/test/java/app/TaskTest.java
+?? docs/lab3/artefacts/stage2/02-working-tree.diff
+?? docs/lab3/artefacts/stage2/03-status.txt
+?? docs/lab3/artefacts/stage3/
