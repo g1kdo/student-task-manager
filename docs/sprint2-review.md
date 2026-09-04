@@ -101,10 +101,10 @@ Health: status=UP uptime=0h00m00s tasks=1 completed=1 heap=12.9MB/4006.0MB (0.3%
 
 | # | Improvement | Status |
 |---|-------------|--------|
-| 1 | Add a real build file and make CI run the tests | Done — `pom.xml` (`ac292c5`), pipeline (`1aa88a8`) |
+| 1 | Add a real build file and make CI run the tests | Done — `pom.xml` (`16748eb`), pipeline (`668df32`) |
 | 2 | Never disable a check to go green; prove the pipeline can fail | Done — `docs/evidence/pipeline-fails-on-failing-test.txt` |
-| 3 | Test the failure path of every story | Done — 69 tests, 92.3% line coverage (`dcd4276`, `f9aa044`, `1de2787`) |
-| 4 | Get printing out of `TaskManager` | Done — `ConsoleApp` owns rendering (`f6a9182`) |
+| 3 | Test the failure path of every story | Done — 69 tests, 92.3% line coverage (`3fa4f41`, `84fe78b`, `f0e1860`) |
+| 4 | Get printing out of `TaskManager` | Done — `ConsoleApp` owns rendering (`40f294b`) |
 | 5 | Write the review and retrospective as the sprint's work | Done — this document and `sprint2-retrospective.md` |
 
 Improvements 1–4 were carried out in the remediation sprint; see

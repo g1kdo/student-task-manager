@@ -566,10 +566,10 @@ Section~\ref{sec:demo}.
 \toprule
 \textbf{\#} & \textbf{Improvement} & \textbf{Status} \\
 \midrule
-1 & Add a real build file and make CI run the tests & Done --- \code{ac292c5}, \code{1aa88a8} \\
+1 & Add a real build file and make CI run the tests & Done --- \code{16748eb}, \code{668df32} \\
 2 & Never disable a check to go green; prove the pipeline can fail & Done --- evidence recorded \\
 3 & Test the failure path of every story & Done --- 69 tests, 92.3\% lines \\
-4 & Get printing out of \code{TaskManager} & Done --- \code{f6a9182} \\
+4 & Get printing out of \code{TaskManager} & Done --- \code{40f294b} \\
 5 & Write the review and retrospective as the sprint's work & Done --- this section \\
 \bottomrule
 \end{tabularx}
@@ -676,23 +676,23 @@ Each finding from the review, the change that closed it, and where to check.
 \endhead
 \bottomrule
 \endfoot
-1 & No build file anywhere, so \code{mvn test} could never work and the tests were unrunnable outside IntelliJ & Maven build targeting Java 21 declaring \code{junit-jupiter}, surefire failing the build on a failing test, plus a wrapper so it runs on a clean machine & \code{ac292c5} & \code{test-run.txt} \\
+1 & No build file anywhere, so \code{mvn test} could never work and the tests were unrunnable outside IntelliJ & Maven build targeting Java 21 declaring \code{junit-jupiter}, surefire failing the build on a failing test, plus a wrapper so it runs on a clean machine & \code{16748eb} & \code{test-run.txt} \\
 \addlinespace
-2 & The only test step was commented out; a pipeline that cannot fail is not a pipeline & Workflow compiles, runs the suite, packages the jar, produces coverage and smoke-tests the artefact; triggers cover \code{develop} too & \code{1aa88a8} & \code{pipeline-fails-\allowbreak on-failing-test.txt} \\
+2 & The only test step was commented out; a pipeline that cannot fail is not a pipeline & Workflow compiles, runs the suite, packages the jar, produces coverage and smoke-tests the artefact; triggers cover \code{develop} too & \code{668df32} & \code{pipeline-fails-\allowbreak on-failing-test.txt} \\
 \addlinespace
-3 & ``Logging'' was two hardcoded printlns, no levels or timestamps, nothing for complete or delete & SLF4J + Logback; all four operations log with timestamps and levels; \code{WARN}/\code{ERROR} used meaningfully; console plus rolling file & \code{f6a9182} & \code{demo-session.txt} \\
+3 & ``Logging'' was two hardcoded printlns, no levels or timestamps, nothing for complete or delete & SLF4J + Logback; all four operations log with timestamps and levels; \code{WARN}/\code{ERROR} used meaningfully; console plus rolling file & \code{40f294b} & \code{demo-session.txt} \\
 \addlinespace
-4 & The health check printed a fixed string and inspected nothing & Reads the task store, measures heap against a 90\% threshold, reports uptime and counts; \code{UP}/\code{DEGRADED}/\code{DOWN}; never throws & \code{57478b0} & \code{HealthCheckTest} \\
+4 & The health check printed a fixed string and inspected nothing & Reads the task store, measures heap against a 90\% threshold, reports uptime and counts; \code{UP}/\code{DEGRADED}/\code{DOWN}; never throws & \code{353202f} & \code{HealthCheckTest} \\
 \addlinespace
-5 & \code{nextInt()} then \code{nextLine()} made ``Input a valid digit'' print after every complete and delete & All input read by line through one prompt; rendering moved into a new \code{ConsoleApp} taking its streams as arguments & \code{f6a9182} & two \code{REGRESSION} tests \\
+5 & \code{nextInt()} then \code{nextLine()} made ``Input a valid digit'' print after every complete and delete & All input read by line through one prompt; rendering moved into a new \code{ConsoleApp} taking its streams as arguments & \code{40f294b} & two \code{REGRESSION} tests \\
 \addlinespace
-6 & Two tests, happy paths of add and complete only & 69 tests across four classes; out-of-range indexes parametrically including \code{MIN\_VALUE}/\code{MAX\_VALUE}; blank names, repeat completion, end of input & \code{dcd4276}, \code{f9aa044}, \code{1de2787} & \code{test-run.txt}, \code{coverage.txt} \\
+6 & Two tests, happy paths of add and complete only & 69 tests across four classes; out-of-range indexes parametrically including \code{MIN\_VALUE}/\code{MAX\_VALUE}; blank names, repeat completion, end of input & \code{3fa4f41}, \code{84fe78b}, \code{f0e1860} & \code{test-run.txt}, \code{coverage.txt} \\
 \addlinespace
-7 & No sprint review and no retrospective anywhere & Four documents written, with the timing stated honestly rather than backdated & \code{b858d1c}, \code{f40782d} & \code{docs/sprint*.md} \\
+7 & No sprint review and no retrospective anywhere & Four documents written, with the timing stated honestly rather than backdated & \code{ca7300b}, \code{1b692e4} & \code{docs/sprint*.md} \\
 \addlinespace
-8 & Screenshots and a PDF committed inside \code{src/app/} & Restructured to the Maven standard layout; deliverables moved to \code{docs/}; the IntelliJ \code{.iml} dropped & \code{6962ae7} & repository tree \\
+8 & Screenshots and a PDF committed inside \code{src/app/} & Restructured to the Maven standard layout; deliverables moved to \code{docs/}; the IntelliJ \code{.iml} dropped & \code{8e8925d} & repository tree \\
 \addlinespace
-9 & The one later commit added an unrelated \code{StreamArrayExample} & Moved to an \code{examples} package so \code{app} holds only assessment code, and excluded from the coverage gate & \code{6962ae7} & \code{src/main/java/\allowbreak examples/} \\
+9 & The one later commit added an unrelated \code{StreamArrayExample} & Moved to an \code{examples} package so \code{app} holds only assessment code, and excluded from the coverage gate & \code{8e8925d} & \code{src/main/java/\allowbreak examples/} \\
 \addlinespace
 10 & Nine of ten commits on one day, so both sprints were a single-day exercise & Not retrofittable, and not disguised. The remediation is 12 scoped commits; the original history is left intact. & --- & \code{git log} \\
 \end{longtable}
@@ -997,18 +997,21 @@ The current commit history, oldest first:
 \code{99cb8f9} & 2026-07-06 & Screenshot of the last build attempt \\
 \code{7e36ea8} & 2026-07-23 & Update documentation and add stream example \\
 \midrule
-\code{6962ae7} & 2026-09-04 & chore: restructure repository into Maven standard layout \\
-\code{ac292c5} & 2026-09-04 & build: define a Maven build so the JUnit tests are runnable \\
-\code{1aa88a8} & 2026-09-04 & ci: run the tests in the pipeline instead of commenting them out \\
-\code{f6a9182} & 2026-09-04 & fix: read all console input by line, split rendering from the domain \\
-\code{57478b0} & 2026-09-04 & feat: make the health check inspect real state \\
-\code{dcd4276} & 2026-09-04 & test: cover the delete, invalid-index and blank-name paths \\
-\code{f9aa044} & 2026-09-04 & test: cover the health check, including DEGRADED and DOWN \\
-\code{1de2787} & 2026-09-04 & test: drive the whole console menu, pinning the reported bug \\
-\code{fc7e905} & 2026-09-04 & docs: capture reproducible test, coverage and demo evidence \\
-\code{b858d1c} & 2026-09-04 & docs: add the Sprint 1 review and retrospective \\
-\code{f40782d} & 2026-09-04 & docs: add the Sprint 2 review, retrospective and remediation record \\
-\code{53ab06b} & 2026-09-04 & docs: rewrite the README around the real build and deliverables \\
+\code{8e8925d} & 2026-09-04 & chore: restructure repository into Maven standard layout \\
+\code{16748eb} & 2026-09-04 & build: define a Maven build so the JUnit tests are runnable \\
+\code{668df32} & 2026-09-04 & ci: run the tests in the pipeline instead of commenting them out \\
+\code{40f294b} & 2026-09-04 & fix: read all console input by line, split rendering from the domain \\
+\code{353202f} & 2026-09-04 & feat: make the health check inspect real state \\
+\code{3fa4f41} & 2026-09-04 & test: cover the delete, invalid-index and blank-name paths \\
+\code{84fe78b} & 2026-09-04 & test: cover the health check, including DEGRADED and DOWN \\
+\code{f0e1860} & 2026-09-04 & test: drive the whole console menu, pinning the reported bug \\
+\code{3c52c4f} & 2026-09-04 & docs: capture reproducible test, coverage and demo evidence \\
+\code{ca7300b} & 2026-09-04 & docs: add the Sprint 1 review and retrospective \\
+\code{1b692e4} & 2026-09-04 & docs: add the Sprint 2 review, retrospective and remediation record \\
+\code{06a4146} & 2026-09-04 & docs: rewrite the README around the real build and deliverables \\
+\code{ac114a7} & 2026-09-04 & docs: add the consolidated LaTeX report and compile it in CI \\
+\code{b66a463} & 2026-09-04 & docs: harden the report source against compile failures \\
+\multicolumn{3}{@{}l}{\small\itshape Later documentation commits follow; see \code{git log} for the current tip.} \\
 \bottomrule
 \end{tabularx}
 \caption{Commit history. The rule above the last block separates the original
@@ -1022,7 +1025,7 @@ history does not show two sprints of iterative delivery. That is stated here
 rather than concealed, and the original commits were left as they are rather
 than rewritten.
 
-The remediation work is twelve commits, each one scoped change with a message
+The remediation work is a sequence of small commits, each one scoped change with a message
 saying what changed and why. Every one of them builds and every one leaves the
 test suite green.
 
