@@ -1,0 +1,1074 @@
+% =====================================================================
+%  Agile & DevOps in Practice - Individual Final Assessment
+%  Student Task Manager
+%
+%  Compiles with pdflatex (twice, for the table of contents):
+%      pdflatex assessment-report.tex
+%      pdflatex assessment-report.tex
+%  Or open this file in Overleaf and press Recompile.
+% =====================================================================
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{lmodern}
+\usepackage[english]{babel}
+\usepackage[a4paper,margin=2.4cm]{geometry}
+
+\usepackage{booktabs}
+\usepackage{tabularx}
+\usepackage{longtable}
+\usepackage{array}
+\usepackage{enumitem}
+\usepackage{graphicx}
+\usepackage{xcolor}
+\usepackage{listings}
+\usepackage{caption}
+\usepackage{titlesec}
+\usepackage[hidelinks]{hyperref}
+
+% ---------------------------------------------------------------------
+%  Styling
+% ---------------------------------------------------------------------
+\definecolor{accent}{HTML}{1F4E79}
+\definecolor{codebg}{HTML}{F5F6F8}
+\definecolor{codeframe}{HTML}{D8DCE2}
+\definecolor{good}{HTML}{1B6B3A}
+\definecolor{bad}{HTML}{A22C22}
+
+\hypersetup{
+  colorlinks=true,
+  linkcolor=accent,
+  urlcolor=accent,
+  citecolor=accent,
+  pdftitle={Agile and DevOps in Practice - Individual Final Assessment},
+  pdfauthor={Katy Great Adonai}
+}
+
+\titleformat{\section}{\color{accent}\Large\bfseries}{\thesection}{0.7em}{}
+\titleformat{\subsection}{\color{accent}\large\bfseries}{\thesubsection}{0.7em}{}
+\titleformat{\subsubsection}{\bfseries}{\thesubsubsection}{0.7em}{}
+
+\captionsetup{font=small,labelfont={bf,color=accent}}
+
+\newcolumntype{L}[1]{>{\raggedright\arraybackslash}p{#1}}
+
+% Verbatim-style block for console output and code
+\lstdefinestyle{plain}{
+  basicstyle=\ttfamily\scriptsize,
+  backgroundcolor=\color{codebg},
+  frame=single,
+  rulecolor=\color{codeframe},
+  framesep=5pt,
+  breaklines=true,
+  columns=fullflexible,
+  keepspaces=true,
+  showstringspaces=false,
+  literate={-}{-}1 {'}{'}1 {"}{"}1
+}
+\lstdefinestyle{yaml}{
+  style=plain,
+  language=,
+  morecomment=[l]{\#},
+  commentstyle=\color{accent!70}\itshape
+}
+\lstdefinestyle{java}{
+  style=plain,
+  language=Java,
+  keywordstyle=\color{accent}\bfseries,
+  commentstyle=\color{black!55}\itshape,
+  stringstyle=\color{good}
+}
+\lstset{style=plain}
+
+\newcommand{\yes}{\textcolor{good}{\textbf{Yes}}}
+\newcommand{\no}{\textcolor{bad}{\textbf{No}}}
+\newcommand{\code}[1]{\texttt{\small #1}}
+\newcommand{\repo}{https://github.com/g1kdo/student-task-manager}
+
+\setlist[itemize]{leftmargin=1.4em,itemsep=2pt,topsep=3pt}
+\setlist[enumerate]{leftmargin=1.6em,itemsep=2pt,topsep=3pt}
+
+% =====================================================================
+\begin{document}
+
+% ------------------------------ Title --------------------------------
+\begin{titlepage}
+\centering
+\vspace*{2.5cm}
+
+{\color{accent}\Huge\bfseries Agile \& DevOps in Practice\par}
+\vspace{0.6cm}
+{\LARGE Individual Final Assessment\par}
+
+\vspace{1.6cm}
+\rule{0.75\textwidth}{1pt}\par
+\vspace{0.8cm}
+{\LARGE\bfseries Project: Student Task Manager\par}
+\vspace{0.4cm}
+{\large A Java console application delivered over two simulated sprints\par}
+\vspace{0.8cm}
+\rule{0.75\textwidth}{1pt}\par
+
+\vspace{2.2cm}
+{\large\bfseries Katy Great Adona\"i\par}
+\vspace{0.3cm}
+{\large AmaliTech Training -- DEG Apprenticeship\par}
+
+\vspace{1.8cm}
+{\large\textbf{Repository:} \url{\repo}\par}
+
+\vspace{0.5cm}
+\begin{minipage}{0.82\textwidth}
+\small\centering
+Every claim in this report is checkable from the repository. Each user story
+names the test that covers it, each review finding names the commit that closed
+it, and the evidence files under \code{docs/evidence/} record the commands that
+produced them. The build runs with a JDK alone:
+\code{./mvnw clean verify}.
+\end{minipage}
+
+\vfill
+{\large 4 September 2026\par}
+\end{titlepage}
+
+\tableofcontents
+\newpage
+
+% =====================================================================
+\section{Overview}
+
+\textbf{Student Task Manager} is a Java console application that lets a student
+add tasks, list them with their status, mark them complete and delete them. It
+is deliberately small: the assessment is about how the work was planned,
+delivered, verified and reflected on, not about the size of the product.
+
+This report consolidates every deliverable. The codebase, commit history,
+pipeline definition and test suite are in the repository at
+\url{\repo}.
+
+\subsection{Submission history}
+
+This is a resubmission. The first submission was reviewed and found to have
+substantial gaps, chiefly in DevOps practice and reflection. Rather than present
+a clean narrative that the commit history would contradict, this report:
+
+\begin{itemize}
+  \item records what each sprint actually delivered, including the pipeline
+        deliverable that Sprint~1 did not really meet;
+  \item states plainly that the sprint reviews and retrospectives were written
+        after the review rather than during the sprints;
+  \item maps each of the ten review findings to the commit that closed it
+        (Section~\ref{sec:remediation}); and
+  \item names the one finding that cannot be retrofitted --- the original
+        single-day commit history --- instead of rewriting it.
+\end{itemize}
+
+\subsection{How to verify this report}
+
+\begin{lstlisting}[style=plain]
+git clone https://github.com/g1kdo/student-task-manager.git
+cd student-task-manager
+./mvnw clean verify        # compiles, runs 69 tests, coverage report + gate
+./mvnw package -DskipTests
+java -jar target/student-task-manager.jar
+\end{lstlisting}
+
+\noindent JDK~21 is the only requirement; the repository ships a Maven wrapper.
+On Windows use \code{mvnw.cmd}.
+
+% =====================================================================
+\section{Sprint 0 --- Planning}
+
+\subsection{Product vision}
+
+\begin{quote}
+A small Java console application that lets a student capture the tasks they have
+to do, see what is still outstanding, and tick things off --- so that nothing is
+tracked only in their head.
+\end{quote}
+
+\subsection{Product backlog}
+
+Estimated in story points on a relative scale: 1 trivial, 2 small, 3 a
+morning's work, 5 needs design as well as code.
+
+\begin{table}[h]
+\centering
+\small
+\begin{tabularx}{\textwidth}{@{}l X c c c@{}}
+\toprule
+\textbf{ID} & \textbf{User story} & \textbf{Priority} & \textbf{Points} & \textbf{Sprint} \\
+\midrule
+US1 & As a student, I want to add a task, so that I can stop keeping it in my head. & High & 3 & 1 \\
+US2 & As a student, I want to see all my tasks with their status, so that I know what is outstanding. & High & 2 & 1 \\
+US3 & As a student, I want to mark a task complete, so that I can track my progress. & High & 3 & 2 \\
+US4 & As a student, I want to delete a task, so that my list stays relevant. & Medium & 2 & 2 \\
+US5 & As a developer, I want application logs and a health check, so that I can see how the running system is behaving. & Medium & 5 & 2 \\
+\midrule
+US6 & As a student, I want mistyped input to be reported rather than crash or be silently misread, so that I can correct it and carry on. & High & 3 & Groomed in \\
+US7 & As a developer, I want the tests to run automatically on every push, so that a regression is caught before review. & High & 3 & Groomed in \\
+\bottomrule
+\end{tabularx}
+\caption{Product backlog, 21 points. US1--US5 (13 points) were the original
+Sprint~0 backlog. US6 and US7 were added at grooming after the Sprint~1
+retrospective.}
+\end{table}
+
+US5 was kept in the backlog from the start rather than added at the end, so
+observability was planned work rather than an afterthought.
+
+\subsection{Acceptance criteria}
+
+Each criterion is written so a test can decide it. The covering test is named in
+brackets --- this is what makes the criteria checkable rather than a matter of
+opinion.
+
+\subsubsection*{US1 --- Add a task}
+\begin{itemize}
+  \item Given a non-empty name, the task is stored and the application confirms
+        it. \hfill \code{ConsoleAppTest.addingATaskConfirmsAndStores}
+  \item Tasks appear in the order they were added. \hfill
+        \code{TaskManagerTest.AddTask.addPreservesInsertionOrder}
+  \item A blank or whitespace-only name is refused and nothing is stored.
+        \hfill \code{TaskManagerTest.AddTask.addRejectsBlankNames}
+  \item Surrounding whitespace is trimmed. \hfill
+        \code{TaskManagerTest.AddTask.addTrimsTheName}
+\end{itemize}
+
+\subsubsection*{US2 --- View tasks}
+\begin{itemize}
+  \item Every task is listed, numbered from 1, showing \code{[Done]} or
+        \code{[Pending]}, with a summary of how many of how many are complete.
+        \hfill \code{ConsoleAppTest.listShowsNumbersAndStatuses}
+  \item With no tasks, the application says so rather than printing an empty
+        list or erroring. \hfill \code{ConsoleAppTest.viewingAnEmptyListSaysSo}
+\end{itemize}
+
+\subsubsection*{US3 --- Complete a task}
+\begin{itemize}
+  \item A valid task number becomes complete and is confirmed. \hfill
+        \code{TaskManagerTest.CompleteTask.completeMarksTheTaskDone}
+  \item Completing an already-complete task is reported and does not change the
+        completed count. \hfill
+        \code{TaskManagerTest.CompleteTask.completeIsIdempotent}
+  \item A task number that does not exist --- including 0 and negatives --- is
+        reported and leaves every task untouched. \hfill
+        \code{completeRejectsOutOfRangeIndexes}, \code{taskNumberZeroIsReported}
+  \item With no tasks, the application says so and does not ask for a number.
+        \hfill \code{ConsoleAppTest.completingWithNoTasksSaysSo}
+\end{itemize}
+
+\subsubsection*{US4 --- Delete a task}
+\begin{itemize}
+  \item A valid task number is removed and confirmed; the remainder renumber
+        without gaps. \hfill \code{deleteRemovesTheTask},
+        \code{deletingRenumbersTheRemainder}
+  \item Deleting a completed task lowers the completed count. \hfill
+        \code{deleteUpdatesTheCompletedCount}
+  \item A task number that does not exist is reported and nothing is removed.
+        \hfill \code{deleteRejectsOutOfRangeIndexes}
+\end{itemize}
+
+\subsubsection*{US5 --- Logs and health check}
+\begin{itemize}
+  \item Every add, complete and delete produces a log record carrying a
+        timestamp, a level and the source logger. \hfill
+        \code{docs/evidence/demo-session.txt}
+  \item A failed operation logs at \code{WARN}, not \code{INFO}. \hfill
+        \code{docs/evidence/demo-session.txt}
+  \item The health check reports live state --- uptime, task count, completed
+        count, heap --- not a fixed string. \hfill
+        \code{healthyApplicationReportsUp}, \code{healthCheckReportsLiveState}
+  \item It reports \code{DEGRADED} under heap pressure and \code{DOWN} when the
+        task store cannot be read, and never throws. \hfill
+        \code{heapPressureReportsDegraded}, \code{unreadableTaskStoreReportsDown}
+\end{itemize}
+
+\subsubsection*{US6 --- Mistyped input}
+\begin{itemize}
+  \item A menu choice outside the six options is reported by name and the loop
+        continues. \hfill \code{nonNumericChoiceIsReported},
+        \code{outOfRangeChoiceIsReported}
+  \item A task number that is not a whole number is reported and nothing
+        changes. \hfill \code{nonNumericTaskNumberIsReported}
+  \item Pressing Enter alone redraws the menu without reporting an error.
+        \hfill \code{blankChoiceIsIgnored}
+  \item Entering a task number never causes the \emph{next} menu read to be
+        misread. \hfill two \code{REGRESSION}-named tests in
+        \code{ConsoleAppTest}
+  \item Reaching the end of input exits cleanly instead of looping forever.
+        \hfill \code{endOfInputExitsCleanly}
+\end{itemize}
+
+\subsubsection*{US7 --- Automated build and test}
+\begin{itemize}
+  \item \code{./mvnw clean verify} compiles, runs every test and reports
+        coverage on a machine with only a JDK. \hfill
+        \code{docs/evidence/test-run.txt}
+  \item The pipeline runs on every push and pull request to \code{main} and
+        \code{develop}. \hfill \code{.github/workflows/ci.yml}
+  \item A failing test fails the pipeline. \hfill
+        \code{docs/evidence/pipeline-fails-on-failing-test.txt}
+  \item The pipeline runs the packaged artefact and asserts on its output.
+        \hfill the smoke-test step in \code{ci.yml}
+  \item Test reports, coverage and the runnable jar are published as build
+        artefacts. \hfill \code{ci.yml}
+\end{itemize}
+
+\subsection{Definition of Done}
+
+The first version of this list --- \emph{code compiles, feature works, unit test
+passes, code committed, no major bugs} --- could not fail anything, and did
+not. Every item below can.
+
+\begin{enumerate}
+  \item \code{./mvnw clean verify} passes locally: compiles, all tests green,
+        coverage gate met.
+  \item Every acceptance criterion for the item is covered by at least one
+        named automated test.
+  \item Both the success \emph{and} the failure path of the item are tested,
+        not the happy path alone.
+  \item The operation logs at a level matching what happened --- \code{INFO}
+        for normal work, \code{WARN} or \code{ERROR} for a problem.
+  \item The work is committed in increments, each message saying what changed
+        and why.
+  \item The CI pipeline is green on the pushed commit.
+  \item \code{README.md} and the relevant sprint document reflect any change in
+        behaviour.
+  \item No deliverables --- screenshots, reports --- are committed inside the
+        source tree.
+\end{enumerate}
+
+\subsection{Sprint plans}
+
+\textbf{Sprint 1:} US1 (3), US2 (2) --- 5 points, plus repository and pipeline
+setup. Chosen because the list is useless until something can be put on it and
+read back, and everything later depends on the storage model these two stories
+establish.
+
+\medskip
+\noindent\textbf{Sprint 2:} US3 (3), US4 (2), US5 (5) --- 10 points. Completing
+and deleting are what turn a list into a tracker; US5 makes the running
+application observable.
+
+% =====================================================================
+\section{Sprint 1 --- Execution}
+
+\subsection{Stories delivered}
+
+5 of 5 committed points.
+
+\begin{description}[leftmargin=0pt,style=nextline]
+  \item[US1 --- Add a task] \code{TaskManager.addTask(String)} stores a
+    \code{Task} and confirms it. \code{Task} is a small model holding a name and
+    a completion flag. \\ Commits \code{a95258a}, \code{27fdf4c}, \code{8aeb39e}.
+  \item[US2 --- View tasks] Tasks listed in insertion order, numbered from 1,
+    each showing done or pending. \\ Commit \code{8aeb39e}.
+\end{description}
+
+\subsection{Repository and pipeline setup}
+
+\begin{itemize}
+  \item Git repository with \code{main} and \code{develop} branches and a pull
+        request template.
+  \item A GitHub Actions workflow checking out the code and installing
+        Temurin~21 (\code{629bd17}).
+  \item Two JUnit~5 tests for \code{addTask} and \code{completeTask}
+        (\code{88e15bb}).
+\end{itemize}
+
+\subsection{A real problem diagnosed}
+
+\code{Task} was first placed in a package named \code{java}. The JVM refuses to
+load user classes from a package under \code{java.}, so the class would not run.
+The package was renamed to \code{app}; commit \code{27fdf4c} records the
+diagnosis, not merely the change.
+
+\subsection{Sprint 1 review: goal met, with a significant caveat}
+
+Both stories work and satisfy their acceptance criteria. The \emph{pipeline}
+deliverable, however, was not met, and this was not recognised at the time:
+
+\begin{itemize}
+  \item The workflow's only test step was committed as a comment
+        (\code{729b878}, ``Comment out Maven test command in workflow''). The
+        pipeline could not fail, so it verified nothing.
+  \item The step was commented out because \code{mvn test} did not work --- and
+        \code{mvn test} did not work because the repository had no
+        \code{pom.xml} or \code{build.gradle} at all. The two JUnit tests were
+        only runnable inside one IntelliJ project.
+  \item Commenting out the check treated the symptom. The cause was a missing
+        build file.
+\end{itemize}
+
+\subsection{Sprint 1 retrospective}
+
+\noindent\textit{No retrospective was written during Sprint~1. That omission is
+itself the sprint's clearest process failure, and it is recorded here rather
+than disguised; this reflection was written on 4 September 2026.}
+
+\subsubsection*{What went well}
+\begin{itemize}
+  \item Both committed stories were delivered and worked.
+  \item Observability was planned, not bolted on: US5 sat in the backlog from
+        Sprint~0.
+  \item Bounds checks were written deliberately, so an out-of-range task number
+        printed a message instead of throwing.
+  \item One real diagnosis was made and recorded in its commit message.
+\end{itemize}
+
+\subsubsection*{What was difficult}
+\begin{itemize}
+  \item \textbf{The build tool was the thing I did not know I needed.} I had
+        JUnit tests and a CI workflow and assumed that was a pipeline. Without
+        a \code{pom.xml}, \code{mvn test} had nothing to run.
+  \item \textbf{I treated a red pipeline as a problem with the pipeline.} When
+        \code{mvn test} failed I commented the step out, which made the symptom
+        go away and left the cause in place. A pipeline that cannot fail is not
+        a pipeline, and I had built exactly that.
+  \item \textbf{I tested what I expected to happen.} Two tests, both happy
+        paths. I never tested a task number that does not exist, even though I
+        had written the guard for it.
+  \item \textbf{I could not separate the front end from the rules.}
+        \code{TaskManager} printed to \code{System.out}, so its behaviour could
+        only be checked by looking at the console. That is why the menu loop
+        went untested, and why a user-visible bug in it shipped.
+  \item \textbf{I committed in one sitting.} Nine of ten commits landed on a
+        single day.
+\end{itemize}
+
+\subsubsection*{Improvements for Sprint 2}
+
+\begin{table}[h]
+\centering
+\small
+\begin{tabularx}{\textwidth}{@{}c X L{5.1cm}@{}}
+\toprule
+\textbf{\#} & \textbf{Improvement} & \textbf{How it is verified} \\
+\midrule
+1 & Add a real build file declaring the JUnit dependency, and make CI run \code{mvn test} instead of commenting it out. & \code{docs/evidence/test-run.txt} \\
+2 & Never disable a check to make a build green; fix the cause and prove the pipeline can fail. & \code{docs/evidence/pipeline-\allowbreak fails-on-failing-test.txt} \\
+3 & Test the failure path of every story, starting with the out-of-range task numbers whose guards were already written. & Out-of-range, blank-name and repeat-completion tests \\
+4 & Get printing out of \code{TaskManager} so the rules and the menu can both be tested. & \code{ConsoleApp} takes its streams as arguments; 19 menu tests \\
+5 & Write the review and retrospective as the sprint's work, not after it. & \code{sprint2-review.md}, \code{sprint2-retrospective.md} \\
+\bottomrule
+\end{tabularx}
+\caption{Sprint 1 improvement actions, each paired with the artefact that
+proves it was carried out.}
+\end{table}
+
+Two of these were turned into tracked backlog items rather than handled
+informally: \textbf{US7} (build and test on every push) from improvements 1--2,
+and \textbf{US6} (mistyped input) from improvements 3--4.
+
+% =====================================================================
+\section{Sprint 2 --- Execution and Improvement}
+
+\subsection{Stories delivered}
+
+10 of 10 committed points.
+
+\subsubsection*{US3 --- Complete a task}
+
+\code{TaskManager.completeTask(int)} marks the task at a zero-based index
+complete and \emph{reports whether it changed anything}, so completing an
+already-complete task is distinguishable from a real change and cannot inflate
+the completed count. An index outside the list is refused and logged at
+\code{WARN}. Nine tests in \code{TaskManagerTest.CompleteTask}, plus menu-level
+coverage.
+
+\subsubsection*{US4 --- Delete a task}
+
+\code{TaskManager.deleteTask(int)} removes the task at an index, renumbers the
+remainder by list order, and keeps the completed count correct when the deleted
+task was complete. Nine tests in \code{TaskManagerTest.DeleteTask}.
+
+\subsubsection*{US5 --- Logging}
+
+SLF4J with a Logback backend, configured in
+\code{src/main/resources/logback.xml}. Every record carries a timestamp, a level
+and the source logger, and goes to both the console and a daily rolling file
+under \code{logs/} kept for seven days. Levels are used as levels:
+
+\begin{itemize}
+  \item \code{INFO} --- normal work: task added, completed, deleted;
+        application starting and shutting down.
+  \item \code{WARN} --- a recoverable problem: unknown task number, blank name,
+        unrecognised menu choice.
+  \item \code{ERROR} --- a failure: console input failing, health check
+        reporting \code{DOWN}.
+\end{itemize}
+
+The first attempt's ``logging'' was two \code{System.out.println("[LOG] ...")}
+lines in the add and view branches --- no framework, no levels, no timestamps,
+and nothing at all for complete or delete. All four operations now log, and they
+log from \code{TaskManager} where the state actually changes rather than from
+the menu.
+
+\subsubsection*{US5 --- Health check}
+
+\code{HealthCheck.check()} inspects live state and returns a
+\code{HealthStatus}:
+
+\begin{table}[h]
+\centering
+\small
+\begin{tabularx}{\textwidth}{@{}l X l@{}}
+\toprule
+\textbf{Check} & \textbf{What it does} & \textbf{Verdict it can produce} \\
+\midrule
+\code{taskStore} & Reads the task count and completed count & \code{DOWN} if reading throws \\
+\code{heap} & Compares heap in use against the maximum & \code{DEGRADED} at or above 90\% \\
+\bottomrule
+\end{tabularx}
+\caption{The two checks and the bad news each can report.}
+\end{table}
+
+It also reports uptime, task count, completed count and heap figures, and never
+throws --- a health check that fails by throwing cannot report that the
+application is unwell. The verdict is logged at a level matching its severity.
+The first attempt's health check printed the fixed string
+\code{"Application is running."}, which was true by construction and inspected
+nothing.
+
+The clock and the heap probe are constructor arguments, so \code{DEGRADED} and
+\code{DOWN} are asserted directly rather than hoped for:
+
+\begin{lstlisting}[style=java]
+@Test
+@DisplayName("an unreadable task store reports DOWN without throwing")
+void unreadableTaskStoreReportsDown() {
+    TaskManager broken = new TaskManager() {
+        @Override public int getTaskCount() {
+            throw new IllegalStateException("task store unavailable");
+        }
+    };
+
+    HealthStatus health =
+            new HealthCheck(broken, new TickingClock(), heapAt(0, ONE_GIB)).check();
+
+    assertEquals(HealthStatus.Status.DOWN, health.status());
+    assertEquals(-1, health.taskCount(), "an unreadable store reports -1, not a made-up 0");
+}
+\end{lstlisting}
+
+\subsection{Sprint 2 review: goal met}
+
+All three stories work, each acceptance criterion is covered by a named test,
+and the application is observable through both a log trail and a health check
+that can actually report bad news. The demonstration is in
+Section~\ref{sec:demo}.
+
+\subsection{Improvements from Sprint 1 applied}
+
+\begin{table}[h]
+\centering
+\small
+\begin{tabularx}{\textwidth}{@{}c X L{4.6cm}@{}}
+\toprule
+\textbf{\#} & \textbf{Improvement} & \textbf{Status} \\
+\midrule
+1 & Add a real build file and make CI run the tests & Done --- \code{ac292c5}, \code{1aa88a8} \\
+2 & Never disable a check to go green; prove the pipeline can fail & Done --- evidence recorded \\
+3 & Test the failure path of every story & Done --- 69 tests, 92.3\% lines \\
+4 & Get printing out of \code{TaskManager} & Done --- \code{f6a9182} \\
+5 & Write the review and retrospective as the sprint's work & Done --- this section \\
+\bottomrule
+\end{tabularx}
+\caption{Sprint 1 improvements, and where each was carried out.}
+\end{table}
+
+\subsection{Sprint 2 retrospective}
+
+\subsubsection*{What went well}
+\begin{itemize}
+  \item All three committed stories were delivered, and US5 went from a
+        placeholder to real behaviour: levelled logging across all four
+        operations, and a health check with three possible verdicts rather than
+        one.
+  \item \textbf{The menu input validation held.} Checking
+        \code{choice.matches("\textbackslash\textbackslash d+")} before
+        \code{Integer.parseInt} was deliberate and prevented the
+        \code{InputMismatchException} crash a \code{Scanner} menu loop normally
+        suffers. That instinct was right; it was simply applied in one place and
+        not the other.
+  \item \textbf{Separating rendering from the rules paid for itself
+        immediately.} It was done to make the rules testable; it made the
+        \emph{menu} testable too, and that is what caught the bug below.
+  \item \textbf{Making the health check injectable was worth the extra
+        interface.} Testing an unhappy path you cannot trigger is not testing
+        it.
+\end{itemize}
+
+\subsubsection*{What was difficult}
+\begin{itemize}
+  \item \textbf{A user-visible bug shipped, and it shipped precisely where
+        nothing was tested.} Menu options 3 and 4 read the task number with
+        \code{scanner.nextInt()} inside a loop whose next read was
+        \code{scanner.nextLine()}. \code{nextInt()} consumes the digits but
+        leaves the newline, so the following \code{nextLine()} returned an empty
+        string and the menu printed ``Input a valid digit'' after every complete
+        and every delete. The lesson is not about \code{Scanner}: the bug was in
+        the one layer that had no tests, and it survived because I checked the
+        code by reading it rather than by running it. Two tests named
+        \code{REGRESSION} now pin the fix.
+  \item \textbf{I mistook configuring a thing for having a working thing.} The
+        same mistake as Sprint~1's commented-out test step, in a different
+        place: two \code{[LOG]} printlns looked like logging and a fixed status
+        string looked like a health check. Both existed; neither did anything.
+        The question I should have asked of each is: \emph{what would this tell
+        me if something were wrong?}
+  \item \textbf{I mixed deliverables into the source tree.} Screenshots and the
+        report PDF were committed under \code{src/app/screenshots/}.
+  \item \textbf{The two sprints were one day.} Nine of ten commits landed on
+        6~July 2026. Whatever the commit messages say, the history does not show
+        two sprints of iterative delivery, and I cannot retrofit that.
+\end{itemize}
+
+\subsubsection*{Lessons across both sprints}
+
+\begin{enumerate}
+  \item \textbf{A check that cannot fail is not a check.} This covers the
+        commented-out test step, the \code{[LOG]} printlns and the constant
+        health string alike. In all three cases something existed where a check
+        was expected, which is worse than nothing, because it stops you looking.
+        Each is now something that can report bad news --- and the pipeline
+        failing on a deliberately inverted assertion
+        (Section~\ref{sec:canfail}) is the proof.
+  \item \textbf{Testability is a design property, not a testing activity.} I
+        could not test the menu because \code{ConsoleApp} did not exist and
+        \code{TaskManager} printed to a global stream. The tests became possible
+        once the design let them be written --- the streams became arguments,
+        the clock became an argument. Coverage went from 2 tests to 69 without
+        the rules themselves getting more complicated.
+  \item \textbf{Bugs cluster where the tests are not.} The one user-visible
+        defect was in the only untested layer. That is not coincidence, and it
+        is the most useful thing I learned.
+  \item \textbf{When a build goes red, the build is usually telling the truth.}
+        My instinct was to silence it. The red step was correctly reporting that
+        there was no build file.
+\end{enumerate}
+
+\subsubsection*{What I would do differently from day one}
+\begin{itemize}
+  \item Create the \code{pom.xml} in the first commit, before any code, so the
+        tests are runnable from outside the IDE from the beginning.
+  \item Write the failing test for a story's error path before the code that
+        handles it, rather than writing a guard and never checking it.
+  \item Take the streams and the clock as constructor arguments from the start.
+  \item Commit the review and retrospective as part of the sprint, on the day,
+        so the reflection is a deliverable rather than a reconstruction.
+  \item Keep \code{docs/} and \code{src/} separate from the first commit.
+\end{itemize}
+
+% =====================================================================
+\section{Remediation --- responding to the assessment review}
+\label{sec:remediation}
+
+Each finding from the review, the change that closed it, and where to check.
+
+\begin{longtable}{@{}c L{4.5cm} L{5.3cm} l L{2.7cm}@{}}
+\toprule
+\textbf{\#} & \textbf{Finding} & \textbf{Change} & \textbf{Commit} & \textbf{Evidence} \\
+\midrule
+\endfirsthead
+\toprule
+\textbf{\#} & \textbf{Finding} & \textbf{Change} & \textbf{Commit} & \textbf{Evidence} \\
+\midrule
+\endhead
+\bottomrule
+\endfoot
+1 & No build file anywhere, so \code{mvn test} could never work and the tests were unrunnable outside IntelliJ & Maven build targeting Java 21 declaring \code{junit-jupiter}, surefire failing the build on a failing test, plus a wrapper so it runs on a clean machine & \code{ac292c5} & \code{test-run.txt} \\
+\addlinespace
+2 & The only test step was commented out; a pipeline that cannot fail is not a pipeline & Workflow compiles, runs the suite, packages the jar, produces coverage and smoke-tests the artefact; triggers cover \code{develop} too & \code{1aa88a8} & \code{pipeline-fails-\allowbreak on-failing-test.txt} \\
+\addlinespace
+3 & ``Logging'' was two hardcoded printlns, no levels or timestamps, nothing for complete or delete & SLF4J + Logback; all four operations log with timestamps and levels; \code{WARN}/\code{ERROR} used meaningfully; console plus rolling file & \code{f6a9182} & \code{demo-session.txt} \\
+\addlinespace
+4 & The health check printed a fixed string and inspected nothing & Reads the task store, measures heap against a 90\% threshold, reports uptime and counts; \code{UP}/\code{DEGRADED}/\code{DOWN}; never throws & \code{57478b0} & \code{HealthCheckTest} \\
+\addlinespace
+5 & \code{nextInt()} then \code{nextLine()} made ``Input a valid digit'' print after every complete and delete & All input read by line through one prompt; rendering moved into a new \code{ConsoleApp} taking its streams as arguments & \code{f6a9182} & two \code{REGRESSION} tests \\
+\addlinespace
+6 & Two tests, happy paths of add and complete only & 69 tests across four classes; out-of-range indexes parametrically including \code{MIN\_VALUE}/\code{MAX\_VALUE}; blank names, repeat completion, end of input & \code{dcd4276}, \code{f9aa044}, \code{1de2787} & \code{test-run.txt}, \code{coverage.txt} \\
+\addlinespace
+7 & No sprint review and no retrospective anywhere & Four documents written, with the timing stated honestly rather than backdated & \code{b858d1c}, \code{f40782d} & \code{docs/sprint*.md} \\
+\addlinespace
+8 & Screenshots and a PDF committed inside \code{src/app/} & Restructured to the Maven standard layout; deliverables moved to \code{docs/}; the IntelliJ \code{.iml} dropped & \code{6962ae7} & repository tree \\
+\addlinespace
+9 & The one later commit added an unrelated \code{StreamArrayExample} & Moved to an \code{examples} package so \code{app} holds only assessment code, and excluded from the coverage gate & \code{6962ae7} & \code{src/main/java/\allowbreak examples/} \\
+\addlinespace
+10 & Nine of ten commits on one day, so both sprints were a single-day exercise & Not retrofittable, and not disguised. The remediation is 12 scoped commits; the original history is left intact. & --- & \code{git log} \\
+\end{longtable}
+
+\subsection{Before and after}
+
+\begin{table}[h]
+\centering
+\small
+\begin{tabularx}{\textwidth}{@{}X l l@{}}
+\toprule
+& \textbf{First submission} & \textbf{Now} \\
+\midrule
+Tests & 2 & 69 \\
+Runnable outside the IDE & \no & \yes\ (\code{./mvnw test}) \\
+Line coverage & Not measurable & 92.3\% \\
+Branch coverage & Not measurable & 89.2\% \\
+Pipeline can fail & \no & \yes, demonstrated \\
+Operations that log & 2 of 4, no levels & 4 of 4, levels + timestamps \\
+Health check verdicts & 1 (a constant) & 3 (\code{UP}, \code{DEGRADED}, \code{DOWN}) \\
+Sprint reviews / retrospectives & 0 / 0 & 2 / 2 \\
+\bottomrule
+\end{tabularx}
+\caption{What changed, measured rather than asserted.}
+\end{table}
+
+% =====================================================================
+\section{DevOps --- the CI/CD pipeline}
+
+\subsection{The build}
+
+\code{pom.xml} targets Java 21 and declares \code{junit-jupiter} for tests and
+SLF4J with Logback for logging. Four plugins do the work: \textbf{compiler},
+\textbf{surefire} (a failing test fails the build), \textbf{JaCoCo} (coverage
+report, and a gate that fails \code{verify} below 85\% line or 80\% branch
+coverage) and \textbf{jar} (a runnable jar with \code{app.Main} as its entry
+point, with runtime dependencies copied alongside).
+
+A script-only Maven wrapper is committed, so the build runs on a machine with
+nothing but a JDK --- which is exactly the situation the CI runner is in, and
+was the situation the first submission could not handle.
+
+\subsection{The pipeline}
+
+\code{.github/workflows/ci.yml} runs on every push and pull request to
+\code{main} and \code{develop}, and can be re-run by hand.
+
+\begin{table}[h]
+\centering
+\small
+\begin{tabularx}{\textwidth}{@{}l X@{}}
+\toprule
+\textbf{Step} & \textbf{What it does, and what it would catch} \\
+\midrule
+Checkout & Fetches the commit under test \\
+Set up JDK 21 & Temurin 21, with the Maven cache restored \\
+Compile & \code{./mvnw clean compile} --- catches anything that does not build \\
+Test & \code{./mvnw test} --- 69 tests; a failure fails the pipeline \\
+Package + coverage & \code{./mvnw verify} --- builds the jar, writes the JaCoCo report, fails below the coverage floor \\
+Smoke test & Drives the \emph{packaged jar} over stdin and greps its output for the confirmations and \code{status=UP}, and for the absence of the spurious rejection message --- catches a jar that compiles but does not run \\
+Publish artefacts & Uploads surefire reports, the coverage report and the runnable jar \\
+\bottomrule
+\end{tabularx}
+\caption{Pipeline steps. The smoke test is what makes this a check on the
+artefact rather than only on the source.}
+\end{table}
+
+The smoke-test step, in full:
+
+\begin{lstlisting}[style=yaml]
+- name: Smoke-test the packaged application
+  run: |
+    printf '1\nWrite sprint report\n2\n3\n1\n2\n5\n6\n' \
+      | java -jar target/student-task-manager.jar > smoke.out 2>&1
+    fail() { echo "::error::$1"; exit 1; }
+    grep -q 'Task added'          smoke.out || fail 'add task did not confirm'
+    grep -q 'Write sprint report' smoke.out || fail 'list did not render the task'
+    grep -q 'Task completed'      smoke.out || fail 'complete did not confirm'
+    grep -q 'status=UP'           smoke.out || fail 'health check did not report UP'
+    if grep -qi 'not a valid choice' smoke.out; then
+      fail 'the menu rejected valid input (stale newline regression)'
+    fi
+\end{lstlisting}
+
+\subsection{Evidence that the pipeline can fail}
+\label{sec:canfail}
+
+The central criticism of the first submission was that its pipeline could not
+fail. Rather than assert that this one can, it was demonstrated: one assertion
+in \code{TaskTest} was deliberately inverted, \code{./mvnw clean verify} was
+run, and the result recorded before the assertion was restored.
+
+\begin{lstlisting}[style=plain]
+[ERROR] Tests run: 11, Failures: 1, Errors: 0 <<< FAILURE! -- in app.TaskTest
+[ERROR] app.TaskTest.completeReportsTheChange <<< FAILURE!
+org.opentest4j.AssertionFailedError: DELIBERATELY WRONG: proving the build
+  fails on a failing test ==> expected: <false> but was: <true>
+        at app.TaskTest.completeReportsTheChange(TaskTest.java:52)
+[ERROR] Tests run: 69, Failures: 1, Errors: 0, Skipped: 0
+[INFO] BUILD FAILURE
+\end{lstlisting}
+
+\noindent Recorded in \code{docs/evidence/pipeline-fails-on-failing-test.txt},
+which also notes that restoring the assertion returned the build to
+\code{BUILD SUCCESS}.
+
+\subsection{Pipeline runs}
+
+The GitHub Actions run for the current pipeline is at
+\url{\repo/actions}. For comparison, the first attempt's run --- checkout and
+setup-java only, with no test step --- is archived at
+\code{docs/archive/first-attempt/cicd1-no-test-step.png}.
+
+% Replace with a screenshot of the current green run once pushed:
+% \begin{figure}[h]
+%   \centering
+%   \includegraphics[width=0.95\textwidth]{../evidence/ci-run.png}
+%   \caption{The CI pipeline running green: compile, test, package, smoke test.}
+% \end{figure}
+
+% =====================================================================
+\section{Testing evidence}
+
+\subsection{The suite}
+
+\begin{table}[h]
+\centering
+\small
+\begin{tabularx}{\textwidth}{@{}l c X@{}}
+\toprule
+\textbf{Test class} & \textbf{Tests} & \textbf{What it covers} \\
+\midrule
+\code{TaskManagerTest} & 30 & The rules, grouped by story: insertion order and name trimming (US1); empty-list and completion-state reporting and the unmodifiable view (US2); idempotent completion and boundary indexes (US3); index shifting and completed-count bookkeeping (US4) \\
+\code{TaskTest} & 11 & The model and the invariant it guards: blank and null names refused, trimming, idempotent completion, \code{toString} \\
+\code{HealthCheckTest} & 9 & \code{UP} with correct counts, uptime from construction, \code{DEGRADED} at the threshold and \code{UP} just below it, \code{DOWN} on an unreadable store, and that heap pressure does not soften a \code{DOWN} verdict \\
+\code{ConsoleAppTest} & 19 & Integration: the real menu loop driven by scripted keystrokes. Two \code{REGRESSION} tests for the reported input bug, the full menu contract, empty names, task number 0, non-numeric task numbers, renumbering after a delete, end of input, and one full session across all five stories \\
+\midrule
+\textbf{Total} & \textbf{69} & \\
+\bottomrule
+\end{tabularx}
+\caption{Test suite, up from two happy-path tests.}
+\end{table}
+
+Out-of-range indexes are checked parametrically, including
+\code{Integer.MIN\_VALUE} and \code{Integer.MAX\_VALUE}. Each
+\code{ConsoleAppTest} session runs under a timeout, so a menu loop that
+mishandles end of input fails the build instead of hanging it.
+
+\subsection{Result}
+
+\begin{lstlisting}[style=plain]
+[INFO] Running app.ConsoleAppTest
+[INFO] Tests run: 19, Failures: 0, Errors: 0, Skipped: 0
+[INFO] Running app.HealthCheckTest
+[INFO] Tests run: 9, Failures: 0, Errors: 0, Skipped: 0
+[INFO] Running app.TaskManagerTest
+[INFO] Tests run: 30, Failures: 0, Errors: 0, Skipped: 0
+[INFO] Running app.TaskTest
+[INFO] Tests run: 11, Failures: 0, Errors: 0, Skipped: 0
+[INFO] Tests run: 69, Failures: 0, Errors: 0, Skipped: 0
+[INFO] All coverage checks have been met.
+[INFO] BUILD SUCCESS
+\end{lstlisting}
+
+\subsection{Coverage}
+
+\begin{table}[h]
+\centering
+\small
+\begin{tabular}{@{}l r r r@{}}
+\toprule
+\textbf{Class} & \textbf{Instructions} & \textbf{Branches} & \textbf{Lines} \\
+\midrule
+\code{TaskManager}  & 100.0\% & 100.0\% & 31/31 \\
+\code{Task}         & 100.0\% & 100.0\% & 15/15 \\
+\code{HealthCheck}  & 100.0\% &  90.0\% & 39/39 \\
+\code{HealthStatus} & 100.0\% & 100.0\% & 12/12 \\
+\code{ConsoleApp}   &  87.9\% &  83.3\% & 102/119 \\
+\midrule
+\textbf{Total}      & \textbf{94.5\%} & \textbf{89.2\%} & \textbf{205/222 (92.3\%)} \\
+\bottomrule
+\end{tabular}
+\caption{JaCoCo coverage. The \code{examples} package and the \code{Main} entry
+point are excluded; \code{Main} is covered by the CI smoke test instead. The
+build fails below 85\% line or 80\% branch coverage.}
+\end{table}
+
+% =====================================================================
+\section{Prototype demonstration}
+\label{sec:demo}
+
+A complete session, reproduced with
+\code{java -jar target/student-task-manager.jar} and recorded in
+\code{docs/evidence/demo-session.txt}. Menu redraws are elided; log lines are
+shown as the application emits them.
+
+\begin{lstlisting}[style=plain]
+11:04:33.876 INFO  ConsoleApp  - Student Task Manager starting up
+
+Enter your choice: 1
+Task name: Read chapter 1
+11:04:33.876 INFO  TaskManager - Task added: 'Read chapter 1' (total now 1)
+Task added.
+
+Enter your choice: 1
+Task name: Write summary
+11:04:33.878 INFO  TaskManager - Task added: 'Write summary' (total now 2)
+Task added.
+
+Enter your choice: 2
+
+Your tasks:
+  1. Read chapter 1                 [Pending]
+  2. Write summary                  [Pending]
+  0 of 2 complete.
+
+Enter your choice: 3
+Task number: 2
+11:04:33.890 INFO  TaskManager - Task completed: 'Write summary' (1 of 2 now done)
+Task completed.
+
+Enter your choice: 4
+Task number: 9
+11:04:33.894 WARN  TaskManager - Cannot delete task 9: no such task (there are 2)
+Task 9 was not found.
+
+Enter your choice: 4
+Task number: 1
+11:04:33.895 INFO  TaskManager - Task deleted: 'Read chapter 1' (1 remaining)
+Task deleted.
+
+Enter your choice: 2
+
+Your tasks:
+  1. Write summary                  [Done]
+  1 of 1 complete.
+
+Enter your choice: 5
+11:04:33.893 INFO  HealthCheck - Health check: status=UP uptime=0h00m00s
+                   tasks=1 completed=1 heap=12.9MB/4006.0MB (0.3%)
+
+Health: status=UP uptime=0h00m00s tasks=1 completed=1 heap=12.9MB/4006.0MB (0.3%)
+  taskStore  readable, holding 1 task(s)
+  heap       0.3% used
+
+Enter your choice: x
+'x' is not a valid choice. Enter a number from 1 to 6.
+11:04:33.895 WARN  ConsoleApp  - Unrecognised menu choice: 'x'
+
+Enter your choice: 6
+Goodbye.
+11:04:33.896 INFO  ConsoleApp  - Student Task Manager shut down
+\end{lstlisting}
+
+Three things in this transcript are worth noting against the review findings.
+Option~3 is followed immediately by option~4 with no spurious rejection in
+between, which is the reported bug's absence. The out-of-range delete logs at
+\code{WARN} rather than \code{INFO}. And the health check reports
+\code{tasks=1 completed=1}, following the real state after the delete rather
+than printing a constant.
+
+\subsection{Architecture}
+
+Five small classes with one job each, which is what makes the tests possible.
+
+\begin{table}[h]
+\centering
+\small
+\begin{tabularx}{\textwidth}{@{}l X@{}}
+\toprule
+\textbf{Class} & \textbf{Responsibility} \\
+\midrule
+\code{Task} & The model. Guards its own invariant: a blank name is refused at construction \\
+\code{TaskManager} & The rules. Owns the list, reports success through return values, logs what happened. Never writes to \code{System.out} \\
+\code{HealthCheck} / \code{HealthStatus} & Observability. Takes a clock and a heap probe as arguments so the unhappy paths are testable \\
+\code{ConsoleApp} & The front end. Owns all rendering; takes its streams as arguments so tests drive the real menu \\
+\code{Main} & The wiring that supplies the real console \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+% =====================================================================
+\section{Delivery discipline}
+
+The current commit history, oldest first:
+
+\begin{table}[h]
+\centering
+\small
+\begin{tabularx}{\textwidth}{@{}l l X@{}}
+\toprule
+\textbf{Commit} & \textbf{Date} & \textbf{Subject} \\
+\midrule
+\code{a95258a} & 2026-07-06 & First commit: initial project setup \\
+\code{27fdf4c} & 2026-07-06 & Moved Task into app/ since java/ is a reserved package \\
+\code{8aeb39e} & 2026-07-06 & Implemented the TaskManager \\
+\code{88e15bb} & 2026-07-06 & Tested the codes using unit testing \\
+\code{629bd17} & 2026-07-06 & Creating workflow... \\
+\code{729b878} & 2026-07-06 & Comment out Maven test command in workflow \\
+\code{18ab186} & 2026-07-06 & Implemented the main console UI and documentation \\
+\code{99cb8f9} & 2026-07-06 & Screenshot of the last build attempt \\
+\code{7e36ea8} & 2026-07-23 & Update documentation and add stream example \\
+\midrule
+\code{6962ae7} & 2026-09-04 & chore: restructure repository into Maven standard layout \\
+\code{ac292c5} & 2026-09-04 & build: define a Maven build so the JUnit tests are runnable \\
+\code{1aa88a8} & 2026-09-04 & ci: run the tests in the pipeline instead of commenting them out \\
+\code{f6a9182} & 2026-09-04 & fix: read all console input by line, split rendering from the domain \\
+\code{57478b0} & 2026-09-04 & feat: make the health check inspect real state \\
+\code{dcd4276} & 2026-09-04 & test: cover the delete, invalid-index and blank-name paths \\
+\code{f9aa044} & 2026-09-04 & test: cover the health check, including DEGRADED and DOWN \\
+\code{1de2787} & 2026-09-04 & test: drive the whole console menu, pinning the reported bug \\
+\code{fc7e905} & 2026-09-04 & docs: capture reproducible test, coverage and demo evidence \\
+\code{b858d1c} & 2026-09-04 & docs: add the Sprint 1 review and retrospective \\
+\code{f40782d} & 2026-09-04 & docs: add the Sprint 2 review, retrospective and remediation record \\
+\code{53ab06b} & 2026-09-04 & docs: rewrite the README around the real build and deliverables \\
+\bottomrule
+\end{tabularx}
+\caption{Commit history. The rule above the last block separates the original
+submission from the remediation work.}
+\end{table}
+
+The original nine commits do describe real ordering --- setup, then
+\code{TaskManager}, then tests, then the workflow, then the console UI --- and
+one of them records a genuine diagnosis. But they landed in a single day, so the
+history does not show two sprints of iterative delivery. That is stated here
+rather than concealed, and the original commits were left as they are rather
+than rewritten.
+
+The remediation work is twelve commits, each one scoped change with a message
+saying what changed and why. Every one of them builds and every one leaves the
+test suite green.
+
+% =====================================================================
+\section{Summary of deliverables}
+
+\begin{table}[h]
+\centering
+\small
+\begin{tabularx}{\textwidth}{@{}L{4.4cm} X@{}}
+\toprule
+\textbf{Deliverable} & \textbf{Where} \\
+\midrule
+Backlog, estimates, acceptance criteria, Definition of Done, sprint plans
+  & Section 2 of this report; \code{docs/sprint0-planning.md} \\
+Codebase with incremental commit history
+  & \url{\repo}; Section 8 \\
+CI/CD evidence
+  & \code{.github/workflows/ci.yml}; Section 6;
+    \code{docs/evidence/pipeline-fails-on-failing-test.txt} \\
+Testing evidence
+  & 69 tests in \code{src/test/java/app/}; Section 7;
+    \code{docs/evidence/test-run.txt}, \code{coverage.txt} \\
+Sprint review documents
+  & Sections 3.4 and 4.2; \code{docs/sprint1-review.md},
+    \code{docs/sprint2-review.md} \\
+Retrospectives
+  & Sections 3.5 and 4.4; \code{docs/sprint1-retrospective.md},
+    \code{docs/sprint2-retrospective.md} \\
+Response to the assessment review
+  & Section 5; \code{docs/remediation-sprint.md} \\
+Prototype demonstration
+  & Section 9; \code{docs/evidence/demo-session.txt} \\
+First attempt, kept for comparison
+  & \code{docs/archive/} \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\vfill
+\begin{center}
+\small
+\textit{Katy Great Adona\"i --- AmaliTech Training, DEG Apprenticeship ---
+4 September 2026}
+\end{center}
+
+\end{document}

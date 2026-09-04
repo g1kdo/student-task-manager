@@ -78,3 +78,27 @@ jobs:
           path: |
             target/student-task-manager.jar
             target/lib/
+
+  report:
+    name: Compile the assessment report
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v4
+
+      # Builds docs/report/assessment-report.tex with a full TeX Live image, so
+      # the submission PDF is produced by the pipeline rather than by hand.
+      - name: Compile the LaTeX report
+        uses: xu-cheng/latex-action@v3
+        with:
+          root_file: assessment-report.tex
+          working_directory: docs/report
+          latexmk_use_xelatex: false
+
+      - name: Publish the report PDF
+        uses: actions/upload-artifact@v4
+        with:
+          name: assessment-report-pdf
+          path: docs/report/assessment-report.pdf
+          if-no-files-found: error
