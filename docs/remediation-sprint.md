@@ -37,7 +37,26 @@ and drives it over stdin, asserting on its output — so the pipeline proves the
 artefact runs, not merely that it compiled. Test reports, the coverage report
 and the jar are published as build artefacts.
 
-That the pipeline can fail is evidenced, not asserted: one assertion was
+That the pipeline can fail is evidenced twice over, and the stronger evidence
+was not planned.
+
+**It caught a real defect.** The pipeline's first two runs failed with
+`./mvnw: Permission denied` and exit code 126. The Maven wrapper had been
+generated on Windows, where git's `core.filemode` is `false`, so git stored
+`mvnw` as mode `100644` instead of `100755`; the Linux runner checked out a
+file it had no permission to execute. Every local build had been green
+throughout, because Git Bash on Windows ignores the permission bit — so this
+was only ever observable in CI. It was fixed at the root with
+`git update-index --chmod=+x mvnw` rather than by adding a `chmod +x mvnw`
+step to the workflow, which would have concealed the cause instead of removing
+it — the same mistake as commenting out a failing test step. See
+`docs/evidence/ci-runs.txt`.
+
+The same file records the sharpest single piece of evidence against the old
+pipeline: `Java CI #2` reports **success** on commit `729b878`, whose entire
+purpose was to comment out the test command.
+
+**It also fails on a failing test.** Independently, one assertion was
 deliberately inverted, `./mvnw clean verify` was run, `BUILD FAILURE` was
 recorded in `docs/evidence/pipeline-fails-on-failing-test.txt`, and the
 assertion was restored.

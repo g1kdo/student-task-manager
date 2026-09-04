@@ -781,9 +781,42 @@ The smoke-test step, in full:
 \label{sec:canfail}
 
 The central criticism of the first submission was that its pipeline could not
-fail. Rather than assert that this one can, it was demonstrated: one assertion
-in \code{TaskTest} was deliberately inverted, \code{./mvnw clean verify} was
-run, and the result recorded before the assertion was restored.
+fail. That criticism is demonstrably correct, and the run history proves it:
+the old workflow reports \textbf{success} on commit \code{729b878}, whose
+entire purpose was to comment out the test command. A pipeline that passes the
+commit disabling its own testing is not verifying anything.
+
+\subsubsection*{A real defect the local build could not catch}
+
+The new pipeline's first two runs \emph{failed}, and they failed usefully:
+
+\begin{lstlisting}[style=plain]
+/home/runner/work/_temp/....sh: line 1: ./mvnw: Permission denied
+Error: Process completed with exit code 126.
+\end{lstlisting}
+
+\noindent The Maven wrapper was generated on Windows, where Git's
+\code{core.filemode} is \code{false}, so Git stored \code{mvnw} as mode
+\code{100644} rather than \code{100755}. Every local build had run green
+throughout --- Git Bash on Windows ignores the permission bit --- so this was
+only ever observable on the Linux runner. It was fixed at the root with
+\code{git update-index --chmod=+x mvnw}, which stores mode \code{100755},
+rather than by adding a \code{chmod +x mvnw} step to the workflow: that would
+have hidden the cause instead of removing it, which is the same mistake as
+commenting out a failing test step. The following runs are green on every
+step, smoke test included.
+
+This is the difference between the two pipelines in one sentence. The old one
+passed a commit that switched testing off; the new one caught a packaging
+defect that no local run could reveal. The full run table is in
+\code{docs/evidence/ci-runs.txt}.
+
+\subsubsection*{And it fails on a failing test}
+
+Independently of the above, that a failing \emph{test} fails the build was also
+demonstrated directly: one assertion in \code{TaskTest} was deliberately
+inverted, \code{./mvnw clean verify} was run, and the result recorded before
+the assertion was restored.
 
 \begin{lstlisting}[style=plain]
 [ERROR] Tests run: 11, Failures: 1, Errors: 0 <<< FAILURE! -- in app.TaskTest
@@ -801,9 +834,33 @@ which also notes that restoring the assertion returned the build to
 
 \subsection{Pipeline runs}
 
-The GitHub Actions run for the current pipeline is at
-\url{https://github.com/g1kdo/student-task-manager/actions}. For comparison, the first attempt's run --- checkout and
-setup-java only, with no test step --- is archived at
+All runs are at
+\url{https://github.com/g1kdo/student-task-manager/actions}; the table below is
+taken from the public Actions API and reproduced in
+\code{docs/evidence/ci-runs.txt}.
+
+\begin{table}[h]
+\centering
+\small
+\begin{tabularx}{\textwidth}{@{}l l l l X@{}}
+\toprule
+\textbf{Run} & \textbf{Event} & \textbf{Commit} & \textbf{Result} & \textbf{Commit subject} \\
+\midrule
+CI \#4 & pull\_request & \code{3b3a5ff} & \textcolor{good}{\textbf{success}} & ci: mark mvnw executable so the Linux runner can run it \\
+CI \#3 & push & \code{3b3a5ff} & \textcolor{good}{\textbf{success}} & ci: mark mvnw executable so the Linux runner can run it \\
+CI \#2 & pull\_request & \code{5f076c9} & \textcolor{bad}{\textbf{failure}} & (the wrapper permission defect) \\
+CI \#1 & push & \code{5f076c9} & \textcolor{bad}{\textbf{failure}} & (the wrapper permission defect) \\
+\midrule
+Java CI \#2 & push & \code{729b878} & \textcolor{bad}{\textbf{success}} & Comment out Maven test command in workflow \\
+\bottomrule
+\end{tabularx}
+\caption{The new pipeline (top) went red on a real defect and green once it was
+fixed. The old pipeline (bottom) reported success on the commit that switched
+its own testing off --- the red \emph{success} is the point.}
+\end{table}
+
+For comparison, the first attempt's run --- checkout and setup-java only, with
+no test step --- is archived at
 \code{docs/archive/first-attempt/cicd1-no-test-step.png}.
 
 % Replace with a screenshot of the current green run once pushed:
