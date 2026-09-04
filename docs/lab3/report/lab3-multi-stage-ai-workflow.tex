@@ -634,6 +634,16 @@ Stage 1 verification
   & Added an ajv harness that reads the schema out of the delivered artefact.
     17 cases, both directions of the conditional rule. \\
 \addlinespace
+Report toolchain
+  & This report failed to compile in CI with only ``exit code 12'' to go on,
+    and downloading GitHub job logs needs repository admin rights, which this
+    account does not have. The cause was an \code{X} column inside a
+    \code{longtable} --- \code{X} belongs to \code{tabularx}, which is why the
+    sibling report's fixed-width \code{longtable} compiled fine.
+  & Fixed the column spec, and added a CI step that re-emits the real LaTeX
+    errors as \code{::error::} annotations, which \emph{are} readable without
+    admin rights. The next failure is diagnosable from the run itself. \\
+\addlinespace
 Stage 2 & \emph{To be completed after the stage runs.} & \\
 \addlinespace
 Stage 3 & \emph{To be completed after the stage runs.} & \\
