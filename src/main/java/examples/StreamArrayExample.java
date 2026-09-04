@@ -1,4 +1,4 @@
-package app;
+package examples;
 import java.util.Arrays;
 
 public class StreamArrayExample {

@@ -1,4 +1,4 @@
-package app;
+package examples;
 
 public class TestException extends RuntimeException {
     public TestException(String message) {
