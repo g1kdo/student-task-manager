@@ -1,0 +1,16 @@
+Coverage evidence - JaCoCo (app package; examples and Main excluded)
+Date: 2026-09-04 09:05:54 UTC
+Source: target/site/jacoco/jacoco.csv, produced by ./mvnw verify
+
+CLASS                       INSTR     BRANCH      LINES
+HealthStatus.Status        100.0%       0.0%      1/1   
+HealthCheck.HeapProbe.new HealthCheck.HeapProbe() {...}     100.0%       0.0%      4/4   
+ConsoleApp                  87.9%      83.3%    102/119 
+Task                       100.0%     100.0%     15/15  
+HealthStatus               100.0%     100.0%     12/12  
+HealthCheck.HeapProbe      100.0%       0.0%      1/1   
+TaskManager                100.0%     100.0%     31/31  
+HealthCheck                100.0%      90.0%     39/39  
+TOTAL                       94.5%      89.2%    205/222 
+
+Build gate: verify fails below 85% line and 80% branch coverage.

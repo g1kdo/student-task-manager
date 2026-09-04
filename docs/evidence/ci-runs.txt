@@ -1,0 +1,47 @@
+CI run evidence - GitHub Actions
+Repository: https://github.com/g1kdo/student-task-manager/actions
+Captured:   2026-09-04
+
+Queried from the public GitHub Actions API. Oldest at the bottom.
+
+  RUN            EVENT         BRANCH   SHA      RESULT    COMMIT
+  CI #4          pull_request  develop  3b3a5ff  success   ci: mark mvnw executable ...
+  CI #3          push          develop  3b3a5ff  success   ci: mark mvnw executable ...
+  CI #2          pull_request  develop  5f076c9  FAILURE   docs: correct the commit references ...
+  CI #1          push          develop  5f076c9  FAILURE   docs: correct the commit references ...
+  Java CI #5     pull_request  develop  7e36ea8  success   (old workflow, no test step)
+  Java CI #4     push          main     99cb8f9  success   (old workflow, no test step)
+  Java CI #3     push          main     18ab186  success   (old workflow, no test step)
+  Java CI #2     push          main     729b878  success   Comment out Maven test command in workflow
+
+Two things this table shows.
+
+1. The old pipeline could not fail, and this is the proof.
+   "Java CI #2" reports SUCCESS on commit 729b878 - the commit whose entire
+   purpose was to comment out the test command. A pipeline that passes the
+   commit that disables its own testing is not verifying anything.
+
+2. The new pipeline caught a real defect that the local build could not.
+   CI #1 and #2 failed on 5f076c9 with:
+
+       /home/runner/work/_temp/....sh: line 1: ./mvnw: Permission denied
+       Error: Process completed with exit code 126.
+
+   The Maven wrapper was generated on Windows, where git's core.filemode is
+   false, so git stored mvnw as mode 100644 instead of 100755. The local build
+   ran green throughout - Git Bash on Windows ignores the permission bit - so
+   only the Linux runner could surface this.
+
+   Fixed at the root with `git update-index --chmod=+x mvnw`, storing mode
+   100755, rather than adding a `chmod +x mvnw` step to the workflow, which
+   would have hidden the cause instead of removing it. CI #3 and #4 on 3b3a5ff
+   are green, every step included:
+
+       Compile                                          success
+       Run unit and integration tests                   success
+       Package the runnable jar / coverage report        success
+       Smoke-test the packaged application               success
+       Publish test results / coverage / runnable jar    success
+
+Verify with:
+  curl -s "https://api.github.com/repos/g1kdo/student-task-manager/actions/runs?per_page=8"

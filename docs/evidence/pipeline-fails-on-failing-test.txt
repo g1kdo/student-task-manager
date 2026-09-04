@@ -1,0 +1,23 @@
+Evidence: the build fails when a test fails
+Date: 2026-09-04 09:04:44 UTC
+
+One assertion in TaskTest.completeReportsTheChange was deliberately
+inverted, then './mvnw -B clean verify' was run. The relevant output:
+
+[INFO] Tests run: 19, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.888 s -- in app.ConsoleAppTest
+[INFO] Tests run: 9, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.041 s -- in app.HealthCheckTest
+[INFO] Tests run: 9, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.450 s -- in app.TaskManagerTest$DeleteTask
+[INFO] Tests run: 9, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.214 s -- in app.TaskManagerTest$CompleteTask
+[INFO] Tests run: 3, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.048 s -- in app.TaskManagerTest$ViewTasks
+[INFO] Tests run: 9, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.141 s -- in app.TaskManagerTest$AddTask
+[INFO] Tests run: 0, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.887 s -- in app.TaskManagerTest
+[ERROR] Tests run: 11, Failures: 1, Errors: 0, Skipped: 0, Time elapsed: 0.118 s <<< FAILURE! -- in app.TaskTest
+[ERROR] app.TaskTest.completeReportsTheChange -- Time elapsed: 0.032 s <<< FAILURE!
+org.opentest4j.AssertionFailedError: DELIBERATELY WRONG: proving the build fails on a failing test ==> expected: <false> but was: <true>
+	at app.TaskTest.completeReportsTheChange(TaskTest.java:52)
+[ERROR] Failures: 
+[ERROR]   TaskTest.completeReportsTheChange:52 DELIBERATELY WRONG: proving the build fails on a failing test ==> expected: <false> but was: <true>
+[ERROR] Tests run: 69, Failures: 1, Errors: 0, Skipped: 0
+[INFO] BUILD FAILURE
+
+The assertion was then restored and the build returned to BUILD SUCCESS.

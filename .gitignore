@@ -29,3 +29,16 @@ bin/
 
 ### Mac OS ###
 .DS_Store
+### Maven ###
+target/
+!.mvn/wrapper/maven-wrapper.properties
+
+### LaTeX build artefacts ###
+*.aux
+*.log
+*.out
+*.toc
+*.fls
+*.fdb_latexmk
+*.synctex.gz
+logs/

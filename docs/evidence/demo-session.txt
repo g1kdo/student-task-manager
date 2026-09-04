@@ -1,0 +1,129 @@
+Demo session evidence - Student Task Manager
+Command: java -jar target/student-task-manager.jar
+Date:    2026-09-04 09:04:33 UTC
+
+Keystrokes fed on stdin, one per line:
+  1 / Read chapter 1 / 1 / Write summary / 2 / 3 / 2 / 4 / 9 / 4 / 1 / 2 / 5 / x / 6
+  (option 4 with task number 9 exercises an out-of-range number;
+   'x' at the menu exercises an invalid choice)
+
+================================ OUTPUT ================================
+11:04:33.876 INFO  ConsoleApp - Student Task Manager starting up
+
+Task Manager
+1. Add Task
+2. View Tasks
+3. Complete Task
+4. Delete Task
+5. Health Check
+6. Exit
+
+Enter your choice: Task name: 11:04:33.882 INFO  TaskManager - Task added: 'Read chapter 1' (total now 1)
+Task added.
+
+Task Manager
+1. Add Task
+2. View Tasks
+3. Complete Task
+4. Delete Task
+5. Health Check
+6. Exit
+
+Enter your choice: Task name: 11:04:33.884 INFO  TaskManager - Task added: 'Write summary' (total now 2)
+Task added.
+
+Task Manager
+1. Add Task
+2. View Tasks
+3. Complete Task
+4. Delete Task
+5. Health Check
+6. Exit
+
+Enter your choice: 
+Your tasks:
+  1. Read chapter 1                 [Pending]
+  2. Write summary                  [Pending]
+  0 of 2 complete.
+
+Task Manager
+1. Add Task
+2. View Tasks
+3. Complete Task
+4. Delete Task
+5. Health Check
+6. Exit
+
+Enter your choice: Task number: 11:04:33.890 INFO  TaskManager - Task completed: 'Write summary' (1 of 2 now done)
+Task completed.
+
+Task Manager
+1. Add Task
+2. View Tasks
+3. Complete Task
+4. Delete Task
+5. Health Check
+6. Exit
+
+Enter your choice: Task number: 11:04:33.890 WARN  TaskManager - Cannot delete task 9: no such task (there are 2)
+Task 9 was not found.
+
+Task Manager
+1. Add Task
+2. View Tasks
+3. Complete Task
+4. Delete Task
+5. Health Check
+6. Exit
+
+Enter your choice: Task number: 11:04:33.891 INFO  TaskManager - Task deleted: 'Read chapter 1' (1 remaining)
+Task deleted.
+
+Task Manager
+1. Add Task
+2. View Tasks
+3. Complete Task
+4. Delete Task
+5. Health Check
+6. Exit
+
+Enter your choice: 
+Your tasks:
+  1. Write summary                  [Done]
+  1 of 1 complete.
+
+Task Manager
+1. Add Task
+2. View Tasks
+3. Complete Task
+4. Delete Task
+5. Health Check
+6. Exit
+
+Enter your choice: 11:04:33.893 INFO  HealthCheck - Health check: status=UP uptime=0h00m00s tasks=1 completed=1 heap=12.9MB/4006.0MB (0.3%)
+
+Health: status=UP uptime=0h00m00s tasks=1 completed=1 heap=12.9MB/4006.0MB (0.3%)
+  taskStore  readable, holding 1 task(s)
+  heap       0.3% used
+
+Task Manager
+1. Add Task
+2. View Tasks
+3. Complete Task
+4. Delete Task
+5. Health Check
+6. Exit
+
+Enter your choice: 'x' is not a valid choice. Enter a number from 1 to 6.
+11:04:33.895 WARN  ConsoleApp - Unrecognised menu choice: 'x'
+
+Task Manager
+1. Add Task
+2. View Tasks
+3. Complete Task
+4. Delete Task
+5. Health Check
+6. Exit
+
+Enter your choice: Goodbye.
+11:04:33.896 INFO  ConsoleApp - Student Task Manager shut down
