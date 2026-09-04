@@ -112,11 +112,29 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Compile the Lab 3 LaTeX report
+        id: lab3tex
+        continue-on-error: true
         uses: xu-cheng/latex-action@v3
         with:
           root_file: lab3-multi-stage-ai-workflow.tex
           working_directory: docs/lab3/report
           latexmk_use_xelatex: false
+
+      # latexmk reports only "exit code 12", and downloading job logs needs
+      # repo admin rights. Re-emitting the real errors as ::error:: puts them
+      # into the run annotations, which are readable without those rights.
+      - name: Surface LaTeX errors
+        if: steps.lab3tex.outcome == 'failure'
+        working-directory: docs/lab3/report
+        run: |
+          shopt -s nullglob
+          for f in *.log; do
+            grep -nE '^! |^l\.[0-9]+|Undefined control sequence|Error|Emergency stop|Missing |Illegal |Undefined column' "$f" \
+              | head -40 \
+              | while IFS= read -r line; do echo "::error file=${f}::${line}"; done
+          done
+          echo 'LaTeX compilation failed; the real errors are in the annotations above.'
+          exit 1
 
       - name: Publish the Lab 3 report PDF
         uses: actions/upload-artifact@v4

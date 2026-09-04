@@ -674,7 +674,9 @@ Rewritten from the first submission. The previous version argued its own score
 from a mock transcript; this one cites only captured artefacts, and marks
 criteria that are not yet fully evidenced as exactly that.
 
-\begin{longtable}{@{}L{2.6cm} c L{5.0cm} X@{}}
+% Fixed widths, not an X column: X is a tabularx column type and longtable
+% does not support it. Total stays inside the 16.2cm text block.
+\begin{longtable}{@{}L{2.5cm} c L{5.0cm} L{4.6cm}@{}}
 \toprule
 \textbf{Criterion} & \textbf{State} & \textbf{Evidence that exists} & \textbf{What is still missing} \\
 \midrule
