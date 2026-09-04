@@ -558,6 +558,44 @@ account for the two new prompts, which is a consequence of the change that the
 prompt never mentioned.}
 \end{table}
 
+\subsection{The approval gate, and what it could not catch}
+\label{sec:gate}
+
+The prompt's \emph{``show me the changes as a diff before applying anything''}
+worked exactly as intended: Copilot presented the complete diff and asked
+whether to apply or revise it, rather than writing to disk unilaterally. The
+diff was reviewed, approved, and applied. Stage 2 took 8 minutes end to end.
+
+That approved diff is captured verbatim in
+\code{stage2/01b-copilot-proposed.diff}, and it contains this:
+
+\begin{lstlisting}[style=java]
++        @Test
++        @DisplayName("reminders are returned in due-date order")
++        void remindersAreSortedByDueDate() {
++            manager.addTask("Later",  LocalDate.of(2026, 10, 2), 2);
++            manager.addTask("Sooner", LocalDate.of(2026, 9, 28), 3);
++
++            assertEquals(List.of("Sooner", "Later"),
++                    manager.tasksNeedingReminder(LocalDate.of(2026, 9, 28))
++                            .stream().map(Task::getName).toList());
++        }
+\end{lstlisting}
+
+\noindent This is the defect Stage 3 later caught. It was present at the
+approval gate, and it passed review.
+
+That is the single most instructive result in this lab, and it is not a
+criticism of the review. The assertion reads as entirely plausible: a test
+named ``returned in due-date order'' asserting two names in due-date order.
+Catching it by eye requires holding two due dates, two lead times and an
+inclusive window in your head simultaneously, for one test among fourteen, in a
+329-line diff. \textbf{A diff review checks intent; only execution checks
+arithmetic.} The human gate and the machine gate are not substitutes for each
+other, and the workflow needs both --- which is the strongest justification
+available for why Stage 3 exists as a separate stage rather than a step the IDE
+could have absorbed.
+
 \subsection{Where it overreached}
 
 Copilot also edited \textbf{Artifact A itself}, replacing the four
@@ -857,10 +895,11 @@ estimate as one.
 \toprule
 \textbf{Stage} & \textbf{Duration} & \textbf{How measured} \\
 \midrule
-2 (IDE) & $\approx$2\,min\,37\,s of tool output
-  & File modification times across Copilot's writes, 17:14:10 to 17:16:47.
-    Excludes the author's prompt-entry and diff-review time, which was not
-    instrumented. \\
+2 (IDE) & 8\,min end to end
+  & Prompt submitted 17:10, Copilot finished 17:18, noted by the operator.
+    Of that, $\approx$2\,min\,37\,s is file output (modification times
+    17:14:10 to 17:16:47); the rest is the agent reading the five referenced
+    files, reasoning, and waiting at the approval gate. \\
 \addlinespace
 3 (CLI) & $\approx$3\,min\,25\,s
   & First verification at 17:15:35 to commit at 17:19:00, from
@@ -997,6 +1036,20 @@ design revealed that, because a design has no build step. Re-pointing at a
 repository that already had 69 tests and a coverage gate meant the workflow
 could be rejected by something other than an author's opinion, which is the
 whole difference between the two submissions.
+
+\textbf{Human review and machine verification catch different classes of
+error, and neither substitutes for the other.} This is the finding I did not
+expect. The defective test was in the diff at the approval gate
+(\S\ref{sec:gate}), it was reviewed, and it was approved --- because a test
+named ``returned in due-date order'' asserting two names in due-date order
+looks right. What was wrong was the arithmetic of a reminder window three lines
+away. Then the same asymmetry repeated one level up: Stage 3's own
+verification passed, and the \emph{pipeline} caught a stale smoke test that
+\code{mvnw verify} does not run. Twice, a gate that looked sufficient was not,
+and in both cases what closed the gap was executing something rather than
+reading it. The practical rule I would carry forward: for every checking stage,
+ask what class of error it structurally cannot see, and put a differently
+shaped check after it.
 
 \textbf{The UX categories in the brief are blurrier than they look.} The chat
 stage was performed by the same model family that later performed the CLI

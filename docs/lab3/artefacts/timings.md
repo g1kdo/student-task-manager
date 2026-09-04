@@ -8,7 +8,7 @@ behind it, and the review was right to mark that down.
 |-------|----------------|----------|--------------|
 | 1 | Raw prose request -> Artifact A | not timed | Conversational; not instrumented. Saying so beats inventing a number. |
 | 1a | Schema check, 17 ajv cases | < 1 s | `stage1/02-schema-validation.txt` |
-| 2 | Copilot Agent writing files | ~2 min 37 s | File mtimes across Copilot's writes, 17:14:10 -> 17:16:47. Excludes prompt-entry and diff-review time, which was not instrumented. |
+| 2 | Prompt submitted -> Copilot finished | **8 min** | Operator: prompt at 17:10, finished 17:18. Of that, ~2 min 37 s is file output (mtimes 17:14:10 -> 17:16:47); the rest is reading the five referenced files, reasoning, and waiting at the approval gate. |
 | 3 | First verification -> commit | ~3 min 25 s | 17:15:35 (session log) -> 17:19:00 (commit 9c2ecf8). Includes diagnosis, the fix and two further verification runs. |
 | — | Individual builds | 14 s (fail), 13 s (pass) | `[exit=1, 14s]` / `[exit=0, 13s]`, recorded by `capture.sh` |
 

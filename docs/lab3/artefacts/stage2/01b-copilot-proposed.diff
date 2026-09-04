@@ -1,0 +1,424 @@
+# Diff as PRESENTED BY COPILOT AT THE APPROVAL GATE, before applying.
+# Recorded verbatim from the Copilot Chat panel. This is the artefact the human
+# approved. The applied state differs in one place (see 04-notes.md).
+#
+# Two things this file evidences:
+#   1. TaskManagerTest.remindersAreSortedByDueDate was already broken here, and
+#      passed human review. Stage 3 caught it only by running it.
+#   2. Copilot proposed edits to docs/features/task-due-dates.md (Artifact A),
+#      inserting prose inside a java fence. Restored in Stage 3.
+
+diff --git a/src/main/java/app/Task.java b/src/main/java/app/Task.java
+--- a/src/main/java/app/Task.java
++++ b/src/main/java/app/Task.java
+@@
+ import java.time.Instant;
++import java.time.LocalDate;
++import java.util.Optional;
+@@
+-    private boolean completed;
++    private final LocalDate dueDate;
++    private final Integer remindBeforeDays;
++    private boolean completed;
+@@
+     public Task(String name) {
++        this(name, null, null);
++    }
++
++    public Task(String name, LocalDate dueDate, Integer remindBeforeDays) {
+         if (name == null || name.isBlank()) {
+             throw new IllegalArgumentException("Task name must not be blank");
+         }
++        String trimmed = name.trim();
++        if (trimmed.length() > 120) {
++            throw new IllegalArgumentException("Task name must be 120 characters or fewer");
++        }
++        if (remindBeforeDays != null && dueDate == null) {
++            throw new IllegalArgumentException("remindBeforeDays requires a dueDate");
++        }
++        if (remindBeforeDays != null && (remindBeforeDays < 0 || remindBeforeDays > 30)) {
++            throw new IllegalArgumentException("remindBeforeDays must be between 0 and 30");
++        }
+-        this.name = name.trim();
++        this.name = trimmed;
+         this.createdAt = Instant.now();
++        this.dueDate = dueDate;
++        this.remindBeforeDays = remindBeforeDays;
+         this.completed = false;
+     }
++
++    public Optional<LocalDate> getDueDate() {
++        return Optional.ofNullable(dueDate);
++    }
++
++    public Optional<Integer> getRemindBeforeDays() {
++        return Optional.ofNullable(remindBeforeDays);
++    }
++
++    public Urgency urgencyOn(LocalDate today) {
++        if (dueDate == null) {
++            return Urgency.NONE;
++        }
++        if (dueDate.isBefore(today)) {
++            return Urgency.OVERDUE;
++        }
++        if (dueDate.isEqual(today)) {
++            return Urgency.DUE_TODAY;
++        }
++        return Urgency.UPCOMING;
++    }
++
++    public boolean needsReminderOn(LocalDate today) {
++        if (completed || dueDate == null || remindBeforeDays == null) {
++            return false;
++        }
++        return !today.isBefore(dueDate.minusDays(remindBeforeDays)) && !today.isAfter(dueDate);
++    }
+
+diff --git a/src/main/java/app/Urgency.java b/src/main/java/app/Urgency.java
+new file mode 100644
+--- /dev/null
++++ b/src/main/java/app/Urgency.java
+@@
++package app;
++
++public enum Urgency {
++    OVERDUE,
++    DUE_TODAY,
++    UPCOMING,
++    NONE
++}
+
+diff --git a/src/main/java/app/AddResult.java b/src/main/java/app/AddResult.java
+new file mode 100644
+--- /dev/null
++++ b/src/main/java/app/AddResult.java
+@@
++package app;
++
++public enum AddResult {
++    ADDED,
++    REJECTED_DUPLICATE,
++    REJECTED_INVALID
++}
+
+diff --git a/src/main/java/app/TaskManager.java b/src/main/java/app/TaskManager.java
+--- a/src/main/java/app/TaskManager.java
++++ b/src/main/java/app/TaskManager.java
+@@
+ import java.util.ArrayList;
+ import java.util.Collections;
++import java.util.Comparator;
+ import java.util.List;
++import java.util.Locale;
++import java.time.LocalDate;
+@@
+     public boolean addTask(String name) {
+@@
+     }
++
++    public AddResult addTask(String name, LocalDate dueDate, Integer remindBeforeDays) {
++        final Task task;
++        try {
++            task = new Task(name, dueDate, remindBeforeDays);
++        } catch (IllegalArgumentException e) {
++            log.warn("Rejected task details: {}", e.getMessage());
++            return AddResult.REJECTED_INVALID;
++        }
++        if (hasTaskNamed(task.getName())) {
++            log.warn("Rejected duplicate task: '{}'", task.getName());
++            return AddResult.REJECTED_DUPLICATE;
++        }
++        tasks.add(task);
++        log.info("Task added: '{}' (total now {})", task.getName(), tasks.size());
++        return AddResult.ADDED;
++    }
++
++    public boolean hasTaskNamed(String name) {
++        if (name == null) {
++            return false;
++        }
++        String normalized = normalizeName(name);
++        return tasks.stream().anyMatch(task -> normalizeName(task.getName()).equals(normalized));
++    }
++
++    public List<Task> tasksNeedingReminder(LocalDate today) {
++        return tasks.stream()
++                .filter(task -> task.needsReminderOn(today))
++                .sorted(Comparator.comparing(task -> task.getDueDate().orElseThrow()))
++                .toList();
++    }
+@@
+     private boolean isValidIndex(int index) {
+         return index >= 0 && index < tasks.size();
+     }
++
++    private static String normalizeName(String name) {
++        return name.trim().toLowerCase(Locale.ROOT);
++    }
+ }
+
+diff --git a/src/main/java/app/ConsoleApp.java b/src/main/java/app/ConsoleApp.java
+--- a/src/main/java/app/ConsoleApp.java
++++ b/src/main/java/app/ConsoleApp.java
+@@
+ import java.nio.charset.StandardCharsets;
++import java.time.Clock;
++import java.time.LocalDate;
++import java.time.format.DateTimeParseException;
+ import java.util.List;
+@@
+     private final HealthCheck healthCheck;
++    private final Clock clock;
+
+     public ConsoleApp(InputStream in, PrintStream out, TaskManager manager, HealthCheck healthCheck) {
++        this(in, out, manager, healthCheck, Clock.systemDefaultZone());
++    }
++
++    public ConsoleApp(InputStream in, PrintStream out, TaskManager manager,
++            HealthCheck healthCheck, Clock clock) {
+         this.in = new BufferedReader(new InputStreamReader(in, StandardCharsets.UTF_8));
+         this.out = out;
+         this.manager = manager;
+         this.healthCheck = healthCheck;
++        this.clock = clock;
+@@
+     private boolean addTask() throws IOException {
+         String name = prompt("Task name: ");
+         if (name == null) {
+             return false;
+         }
+-        if (manager.addTask(name)) {
+-            out.println("Task added.");
+-        } else {
++        String dueDateInput = prompt("Due date (YYYY-MM-DD, optional): ");
++        if (dueDateInput == null) {
++            return false;
++        }
++        LocalDate dueDate = parseDueDate(dueDateInput);
++        if (!dueDateInput.trim().isEmpty() && dueDate == null) {
++            return true;
++        }
++        String reminderInput = prompt("Remind before days (0-30, optional): ");
++        if (reminderInput == null) {
++            return false;
++        }
++        Integer remindBeforeDays = parseReminderDays(reminderInput);
++        if (!reminderInput.trim().isEmpty() && remindBeforeDays == null) {
++            return true;
++        }
++        AddResult result = manager.addTask(name, dueDate, remindBeforeDays);
++        if (result == AddResult.ADDED) {
++            out.println("Task added.");
++        } else if (result == AddResult.REJECTED_DUPLICATE) {
++            out.println("A task with that name already exists. Nothing was added.");
++        } else {
+             out.println("A task needs a name. Nothing was added.");
+         }
+         return true;
+@@
+             Task task = tasks.get(i);
+             out.printf("  %d. %-30s %s%n",
+-                    i + 1, task.getName(), task.isCompleted() ? "[Done]" : "[Pending]");
++                    i + 1, task.getName(),
++                    (task.isCompleted() ? "[Done]" : "[Pending]")
++                            + " [" + task.urgencyOn(LocalDate.now(clock)) + "]");
+@@
+     private void printMenu() {
+@@
+     }
++
++    private LocalDate parseDueDate(String raw) {
++        String trimmed = raw.trim();
++        if (trimmed.isEmpty()) {
++            return null;
++        }
++        try {
++            return LocalDate.parse(trimmed);
++        } catch (DateTimeParseException e) {
++            out.println("The due date must be a valid date in YYYY-MM-DD format. Nothing was added.");
++            log.warn("Rejected invalid due date: {}", quote(trimmed));
++            return null;
++        }
++    }
++
++    private Integer parseReminderDays(String raw) {
++        String trimmed = raw.trim();
++        if (trimmed.isEmpty()) {
++            return null;
++        }
++        try {
++            return Integer.valueOf(trimmed);
++        } catch (NumberFormatException e) {
++            out.println("Reminder days must be a whole number from 0 to 30. Nothing was added.");
++            log.warn("Rejected invalid reminder lead time: {}", quote(trimmed));
++            return null;
++        }
++    }
+
+diff --git a/docs/features/task-due-dates.md b/docs/features/task-due-dates.md
+--- a/docs/features/task-due-dates.md
++++ b/docs/features/task-due-dates.md
+@@
+-// TODO(stage-2): bind to the real TaskManager ...
++Implemented in `TaskManager`; the existing task list and logger are reused.
+@@
+-// TODO(stage-2): log a rejected duplicate ...
++Implemented with a WARN log in `TaskManager.addTask`.
+@@
+-// TODO(stage-2): ConsoleApp must render urgency ...
++Implemented in `ConsoleApp` using the existing `readLine` prompt.
+@@
+-// TODO(stage-2): clock injection ...
++Implemented with an injectable `java.time.Clock` constructor argument.
+
+diff --git a/src/test/java/app/TaskTest.java b/src/test/java/app/TaskTest.java
+--- a/src/test/java/app/TaskTest.java
++++ b/src/test/java/app/TaskTest.java
+@@
+ import java.time.Instant;
++import java.time.LocalDate;
++import java.util.Optional;
+@@
+     void nameIsTrimmed() {
+@@
+     }
++
++    @Test
++    @DisplayName("due date and reminder lead time are stored when provided")
++    void optionalFieldsAreStored() {
++        Task task = new Task("Revise", LocalDate.of(2026, 9, 30), 3);
++
++        assertEquals(Optional.of(LocalDate.of(2026, 9, 30)), task.getDueDate());
++        assertEquals(Optional.of(3), task.getRemindBeforeDays());
++    }
++
++    @Test
++    @DisplayName("a name longer than 120 characters is refused")
++    void longNameIsRefused() {
++        assertThrows(IllegalArgumentException.class, () -> new Task("a".repeat(121)));
++    }
++
++    @Test
++    @DisplayName("a reminder requires a due date")
++    void reminderRequiresDueDate() {
++        assertThrows(IllegalArgumentException.class, () -> new Task("Revise", null, 1));
++    }
++
++    @ParameterizedTest
++    @ValueSource(ints = {-1, 31})
++    @DisplayName("a reminder lead time outside 0 to 30 is refused")
++    void reminderLeadTimeMustBeBounded(int days) {
++        assertThrows(IllegalArgumentException.class,
++                () -> new Task("Revise", LocalDate.of(2026, 9, 30), days));
++    }
++
++    @Test
++    @DisplayName("urgency is derived from the date supplied by the caller")
++    void urgencyIsDerivedFromToday() {
++        Task task = new Task("Revise", LocalDate.of(2026, 9, 30), null);
++
++        assertEquals(Urgency.DUE_TODAY, task.urgencyOn(LocalDate.of(2026, 9, 30)));
++        assertEquals(Urgency.OVERDUE, task.urgencyOn(LocalDate.of(2026, 10, 1)));
++        assertEquals(Urgency.UPCOMING, task.urgencyOn(LocalDate.of(2026, 9, 29)));
++    }
++
++    @Test
++    @DisplayName("reminders include both date boundaries and exclude completed tasks")
++    void remindersUseInclusiveBoundaries() {
++        Task task = new Task("Revise", LocalDate.of(2026, 9, 30), 3);
++
++        assertTrue(task.needsReminderOn(LocalDate.of(2026, 9, 27)));
++        assertFalse(task.needsReminderOn(LocalDate.of(2026, 9, 26)));
++        assertTrue(task.needsReminderOn(LocalDate.of(2026, 9, 30)));
++        assertFalse(task.needsReminderOn(LocalDate.of(2026, 10, 1)));
++        task.complete();
++        assertFalse(task.needsReminderOn(LocalDate.of(2026, 9, 30)));
++    }
+
+diff --git a/src/test/java/app/TaskManagerTest.java b/src/test/java/app/TaskManagerTest.java
+--- a/src/test/java/app/TaskManagerTest.java
++++ b/src/test/java/app/TaskManagerTest.java
+@@
+ import java.util.List;
++import java.time.LocalDate;
+@@
+     class AddTask {
+@@
+         void addTrimsTheName() {
+@@
+         }
++
++        @Test
++        @DisplayName("the overloaded add reports invalid contract values")
++        void addReportsInvalidValues() {
++            assertEquals(AddResult.REJECTED_INVALID,
++                    manager.addTask("a".repeat(121), null, null));
++            assertEquals(AddResult.REJECTED_INVALID,
++                    manager.addTask("Reminder", null, 1));
++            assertEquals(AddResult.REJECTED_INVALID,
++                    manager.addTask("Reminder", LocalDate.of(2026, 9, 30), 31));
++        }
++
++        @Test
++        @DisplayName("duplicates ignore case and surrounding whitespace")
++        void duplicateNamesAreRejected() {
++            assertEquals(AddResult.ADDED, manager.addTask(" Revise Maths ", null, null));
++            assertEquals(AddResult.REJECTED_DUPLICATE,
++                    manager.addTask("revise maths", LocalDate.of(2026, 9, 30), null));
++            assertEquals(1, manager.getTaskCount());
++        }
++
++        @Test
++        @DisplayName("a deleted name can be added again")
++        void deletedNameCanBeReused() {
++            manager.addTask("Revise");
++            manager.deleteTask(0);
++
++            assertEquals(AddResult.ADDED, manager.addTask("revise", null, null));
++        }
++
++        @Test
++        @DisplayName("reminders are returned in due-date order")
++        void remindersAreSortedByDueDate() {
++            manager.addTask("Later", LocalDate.of(2026, 10, 2), 2);
++            manager.addTask("Sooner", LocalDate.of(2026, 9, 28), 3);
++
++            assertEquals(List.of("Sooner", "Later"),
++                    manager.tasksNeedingReminder(LocalDate.of(2026, 9, 28))
++                            .stream().map(Task::getName).toList());
++        }
+
+diff --git a/src/test/java/app/ConsoleAppTest.java b/src/test/java/app/ConsoleAppTest.java
+--- a/src/test/java/app/ConsoleAppTest.java
++++ b/src/test/java/app/ConsoleAppTest.java
+@@
+ import java.time.Duration;
++import java.time.Clock;
++import java.time.Instant;
++import java.time.ZoneOffset;
+@@
+     void addingATaskConfirmsAndStores() {
+-        Session session = run("1", "Finish assessment", "6");
++        Session session = run("1", "Finish assessment", "", "", "6");
+@@
+     void emptyTaskNameIsRefused() {
+-        Session session = run("1", "   ", "6");
++        Session session = run("1", "   ", "", "", "6");
+@@
+     void listShowsNumbersAndStatuses() {
+-        Session session = run("1", "Alpha", "1", "Beta", "3", "1", "2", "6");
++        Session session = run("1", "Alpha", "", "", "1", "Beta", "", "", "3", "1", "2", "6");
+@@
+     }
++
++    @Test
++    @DisplayName("adding optional dates and viewing tasks shows derived urgency")
++    void optionalFieldsAndUrgencyAreShown() {
++        Session session = runAt(
++                Clock.fixed(Instant.parse("2026-09-30T10:00:00Z"), ZoneOffset.UTC),
++                "1", "Due today", "2026-09-30", "0", "2", "6");
++
++        assertEquals(LocalDate.of(2026, 9, 30), session.manager().getTasks().get(0).getDueDate().orElseThrow());
++        assertTrue(session.printed("DUE_TODAY"));
++    }
