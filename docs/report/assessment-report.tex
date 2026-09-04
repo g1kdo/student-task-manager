@@ -63,12 +63,10 @@
   breaklines=true,
   columns=fullflexible,
   keepspaces=true,
-  showstringspaces=false,
-  literate={-}{-}1 {'}{'}1 {"}{"}1
+  showstringspaces=false
 }
 \lstdefinestyle{yaml}{
   style=plain,
-  language=,
   morecomment=[l]{\#},
   commentstyle=\color{accent!70}\itshape
 }
@@ -84,7 +82,6 @@
 \newcommand{\yes}{\textcolor{good}{\textbf{Yes}}}
 \newcommand{\no}{\textcolor{bad}{\textbf{No}}}
 \newcommand{\code}[1]{\texttt{\small #1}}
-\newcommand{\repo}{https://github.com/g1kdo/student-task-manager}
 
 \setlist[itemize]{leftmargin=1.4em,itemsep=2pt,topsep=3pt}
 \setlist[enumerate]{leftmargin=1.6em,itemsep=2pt,topsep=3pt}
@@ -116,7 +113,7 @@
 {\large AmaliTech Training -- DEG Apprenticeship\par}
 
 \vspace{1.8cm}
-{\large\textbf{Repository:} \url{\repo}\par}
+{\large\textbf{Repository:} \url{https://github.com/g1kdo/student-task-manager}\par}
 
 \vspace{0.5cm}
 \begin{minipage}{0.82\textwidth}
@@ -145,7 +142,7 @@ delivered, verified and reflected on, not about the size of the product.
 
 This report consolidates every deliverable. The codebase, commit history,
 pipeline definition and test suite are in the repository at
-\url{\repo}.
+\url{https://github.com/g1kdo/student-task-manager}.
 
 \subsection{Submission history}
 
@@ -805,7 +802,7 @@ which also notes that restoring the assertion returned the build to
 \subsection{Pipeline runs}
 
 The GitHub Actions run for the current pipeline is at
-\url{\repo/actions}. For comparison, the first attempt's run --- checkout and
+\url{https://github.com/g1kdo/student-task-manager/actions}. For comparison, the first attempt's run --- checkout and
 setup-java only, with no test step --- is archived at
 \code{docs/archive/first-attempt/cicd1-no-test-step.png}.
 
@@ -979,6 +976,7 @@ Five small classes with one job each, which is what makes the tests possible.
 
 % =====================================================================
 \section{Delivery discipline}
+\label{sec:delivery}
 
 The current commit history, oldest first:
 
@@ -1041,7 +1039,7 @@ test suite green.
 Backlog, estimates, acceptance criteria, Definition of Done, sprint plans
   & Section 2 of this report; \code{docs/sprint0-planning.md} \\
 Codebase with incremental commit history
-  & \url{\repo}; Section 8 \\
+  & \url{https://github.com/g1kdo/student-task-manager}; Section~\ref{sec:delivery} \\
 CI/CD evidence
   & \code{.github/workflows/ci.yml}; Section 6;
     \code{docs/evidence/pipeline-fails-on-failing-test.txt} \\
@@ -1057,7 +1055,7 @@ Retrospectives
 Response to the assessment review
   & Section 5; \code{docs/remediation-sprint.md} \\
 Prototype demonstration
-  & Section 9; \code{docs/evidence/demo-session.txt} \\
+  & Section~\ref{sec:demo}; \code{docs/evidence/demo-session.txt} \\
 First attempt, kept for comparison
   & \code{docs/archive/} \\
 \bottomrule
