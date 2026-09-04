@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.time.LocalDate;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -76,6 +77,66 @@ class TaskManagerTest {
             manager.addTask("  Revise chapter 4  ");
 
             assertEquals("Revise chapter 4", manager.getTasks().get(0).getName());
+        }
+
+        @Test
+        @DisplayName("the overloaded add reports invalid contract values")
+        void addReportsInvalidValues() {
+            assertEquals(AddResult.REJECTED_INVALID, manager.addTask(null, null, null));
+            assertEquals(AddResult.REJECTED_INVALID, manager.addTask("   ", null, null));
+            assertEquals(AddResult.REJECTED_INVALID,
+                    manager.addTask("a".repeat(121), null, null));
+            assertEquals(AddResult.REJECTED_INVALID,
+                    manager.addTask("Reminder", null, 1));
+            assertEquals(AddResult.REJECTED_INVALID,
+                    manager.addTask("Reminder", LocalDate.of(2026, 9, 30), 31));
+            assertEquals(AddResult.ADDED,
+                    manager.addTask("Valid", LocalDate.of(2026, 9, 30), 0));
+        }
+
+        @Test
+        @DisplayName("duplicates ignore case and surrounding whitespace")
+        void duplicateNamesAreRejected() {
+            assertEquals(AddResult.ADDED, manager.addTask(" Revise Maths ", null, null));
+            assertEquals(AddResult.REJECTED_DUPLICATE,
+                    manager.addTask("revise maths", LocalDate.of(2026, 9, 30), null));
+            assertEquals(1, manager.getTaskCount());
+            assertTrue(manager.hasTaskNamed("  REVISE MATHS "));
+        }
+
+        @Test
+        @DisplayName("a deleted name can be added again")
+        void deletedNameCanBeReused() {
+            manager.addTask("Revise");
+            manager.deleteTask(0);
+
+            assertEquals(AddResult.ADDED, manager.addTask("revise", null, null));
+        }
+
+        @Test
+        @DisplayName("reminders are returned in due-date order")
+        void remindersAreSortedByDueDate() {
+            // Both tasks must actually be inside their reminder window on the
+            // date under test, or this asserts filtering rather than ordering.
+            // "Later" is due 2026-10-02 with 4 days' lead, so its window is
+            // [2026-09-28, 2026-10-02] and includes the date below; "Sooner" is
+            // due 2026-09-28 with 3 days' lead, window [2026-09-25, 2026-09-28].
+            manager.addTask("Later", LocalDate.of(2026, 10, 2), 4);
+            manager.addTask("Sooner", LocalDate.of(2026, 9, 28), 3);
+
+            assertEquals(List.of("Sooner", "Later"),
+                    manager.tasksNeedingReminder(LocalDate.of(2026, 9, 28))
+                            .stream().map(Task::getName).toList());
+        }
+
+        @Test
+        @DisplayName("a task outside its reminder window is filtered out")
+        void remindersExcludeTasksOutsideTheirWindow() {
+            // The case the ordering test above was accidentally asserting.
+            manager.addTask("Not yet", LocalDate.of(2026, 10, 2), 2);
+
+            assertTrue(manager.tasksNeedingReminder(LocalDate.of(2026, 9, 28)).isEmpty(),
+                    "2026-09-28 is before the [2026-09-30, 2026-10-02] window");
         }
     }
 

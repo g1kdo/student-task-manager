@@ -6,6 +6,9 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.PrintStream;
 import java.nio.charset.StandardCharsets;
+import java.time.Clock;
+import java.time.LocalDate;
+import java.time.format.DateTimeParseException;
 import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -33,12 +36,19 @@ public class ConsoleApp {
     private final PrintStream out;
     private final TaskManager manager;
     private final HealthCheck healthCheck;
+    private final Clock clock;
 
     public ConsoleApp(InputStream in, PrintStream out, TaskManager manager, HealthCheck healthCheck) {
+        this(in, out, manager, healthCheck, Clock.systemDefaultZone());
+    }
+
+    public ConsoleApp(InputStream in, PrintStream out, TaskManager manager,
+            HealthCheck healthCheck, Clock clock) {
         this.in = new BufferedReader(new InputStreamReader(in, StandardCharsets.UTF_8));
         this.out = out;
         this.manager = manager;
         this.healthCheck = healthCheck;
+        this.clock = clock;
     }
 
     public ConsoleApp(InputStream in, PrintStream out, TaskManager manager) {
@@ -107,8 +117,27 @@ public class ConsoleApp {
         if (name == null) {
             return false;
         }
-        if (manager.addTask(name)) {
+        String dueDateInput = prompt("Due date (YYYY-MM-DD, optional): ");
+        if (dueDateInput == null) {
+            dueDateInput = "";
+        }
+        LocalDate dueDate = parseDueDate(dueDateInput);
+        if (!dueDateInput.trim().isEmpty() && dueDate == null) {
+            return true;
+        }
+        String reminderInput = prompt("Remind before days (0-30, optional): ");
+        if (reminderInput == null) {
+            reminderInput = "";
+        }
+        Integer remindBeforeDays = parseReminderDays(reminderInput);
+        if (!reminderInput.trim().isEmpty() && remindBeforeDays == null) {
+            return true;
+        }
+        AddResult result = manager.addTask(name, dueDate, remindBeforeDays);
+        if (result == AddResult.ADDED) {
             out.println("Task added.");
+        } else if (result == AddResult.REJECTED_DUPLICATE) {
+            out.println("A task with that name already exists. Nothing was added.");
         } else {
             out.println("A task needs a name. Nothing was added.");
         }
@@ -126,7 +155,9 @@ public class ConsoleApp {
         for (int i = 0; i < tasks.size(); i++) {
             Task task = tasks.get(i);
             out.printf("  %d. %-30s %s%n",
-                    i + 1, task.getName(), task.isCompleted() ? "[Done]" : "[Pending]");
+                    i + 1, task.getName(),
+                    (task.isCompleted() ? "[Done]" : "[Pending]")
+                            + " [" + task.urgencyOn(LocalDate.now(clock)) + "]");
         }
         out.printf("  %d of %d complete.%n", manager.getCompletedCount(), tasks.size());
     }
@@ -221,6 +252,34 @@ public class ConsoleApp {
         out.println("5. Health Check");
         out.println("6. Exit");
         out.println();
+    }
+
+    private LocalDate parseDueDate(String raw) {
+        String trimmed = raw.trim();
+        if (trimmed.isEmpty()) {
+            return null;
+        }
+        try {
+            return LocalDate.parse(trimmed);
+        } catch (DateTimeParseException e) {
+            out.println("The due date must be a valid date in YYYY-MM-DD format. Nothing was added.");
+            log.warn("Rejected invalid due date: {}", quote(trimmed));
+            return null;
+        }
+    }
+
+    private Integer parseReminderDays(String raw) {
+        String trimmed = raw.trim();
+        if (trimmed.isEmpty()) {
+            return null;
+        }
+        try {
+            return Integer.valueOf(trimmed);
+        } catch (NumberFormatException e) {
+            out.println("Reminder days must be a whole number from 0 to 30. Nothing was added.");
+            log.warn("Rejected invalid reminder lead time: {}", quote(trimmed));
+            return null;
+        }
     }
 
     private static String quote(String value) {

@@ -1,8 +1,11 @@
 package app;
 
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
+import java.util.Locale;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -39,6 +42,38 @@ public class TaskManager {
             log.warn("Rejected a task with a blank name: {}", e.getMessage());
             return false;
         }
+    }
+
+    public AddResult addTask(String name, LocalDate dueDate, Integer remindBeforeDays) {
+        final Task task;
+        try {
+            task = new Task(name, dueDate, remindBeforeDays);
+        } catch (IllegalArgumentException e) {
+            log.warn("Rejected task details: {}", e.getMessage());
+            return AddResult.REJECTED_INVALID;
+        }
+        if (hasTaskNamed(task.getName())) {
+            log.warn("Rejected duplicate task: '{}'", task.getName());
+            return AddResult.REJECTED_DUPLICATE;
+        }
+        tasks.add(task);
+        log.info("Task added: '{}' (total now {})", task.getName(), tasks.size());
+        return AddResult.ADDED;
+    }
+
+    public boolean hasTaskNamed(String name) {
+        if (name == null) {
+            return false;
+        }
+        String normalized = normalizeName(name);
+        return tasks.stream().anyMatch(task -> normalizeName(task.getName()).equals(normalized));
+    }
+
+    public List<Task> tasksNeedingReminder(LocalDate today) {
+        return tasks.stream()
+                .filter(task -> task.needsReminderOn(today))
+                .sorted(Comparator.comparing(task -> task.getDueDate().orElseThrow()))
+                .toList();
     }
 
     /**
@@ -105,5 +140,9 @@ public class TaskManager {
 
     private boolean isValidIndex(int index) {
         return index >= 0 && index < tasks.size();
+    }
+
+    private static String normalizeName(String name) {
+        return name.trim().toLowerCase(Locale.ROOT);
     }
 }

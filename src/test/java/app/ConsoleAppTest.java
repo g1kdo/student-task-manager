@@ -9,7 +9,10 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
 import java.nio.charset.StandardCharsets;
+import java.time.Clock;
 import java.time.Duration;
+import java.time.Instant;
+import java.time.ZoneOffset;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -37,6 +40,10 @@ class ConsoleAppTest {
      * forever, and this should fail the build rather than hang it.
      */
     private static Session run(String... keystrokes) {
+        return runAt(Clock.systemDefaultZone(), keystrokes);
+    }
+
+    private static Session runAt(Clock clock, String... keystrokes) {
         String input = String.join("\n", keystrokes) + "\n";
         TaskManager manager = new TaskManager();
         ByteArrayOutputStream captured = new ByteArrayOutputStream();
@@ -45,7 +52,7 @@ class ConsoleAppTest {
                 new ConsoleApp(
                         new ByteArrayInputStream(input.getBytes(StandardCharsets.UTF_8)),
                         new PrintStream(captured, true, StandardCharsets.UTF_8),
-                        manager).run());
+                        manager, new HealthCheck(manager), clock).run());
 
         return new Session(captured.toString(StandardCharsets.UTF_8), manager);
     }
@@ -60,7 +67,7 @@ class ConsoleAppTest {
         // The old code read the task number with Scanner.nextInt(), which left
         // the newline in the buffer; the loop's next nextLine() then returned
         // an empty string and the menu printed 'Input a valid digit'.
-        Session session = run("1", "Revise", "3", "1", "2", "6");
+        Session session = run("1", "Revise", "", "", "3", "1", "2", "6");
 
         assertFalse(session.printed("is not a valid choice"),
                 "the menu must not reject the input that follows a task number");
@@ -73,7 +80,7 @@ class ConsoleAppTest {
     @Test
     @DisplayName("REGRESSION: deleting a task does not make the next menu read fail")
     void deletingATaskDoesNotBreakTheNextMenuRead() {
-        Session session = run("1", "Revise", "4", "1", "2", "6");
+        Session session = run("1", "Revise", "", "", "4", "1", "2", "6");
 
         assertFalse(session.printed("is not a valid choice"));
         assertTrue(session.printed("Task deleted."));
@@ -128,7 +135,7 @@ class ConsoleAppTest {
     @Test
     @DisplayName("the loop exits cleanly when the input ends without an explicit exit")
     void endOfInputExitsCleanly() {
-        Session session = run("1", "Revise");
+        Session session = run("1", "Revise", "", "");
 
         assertTrue(session.printed("Input ended. Exiting."));
         assertEquals(1, session.manager().getTaskCount(), "the work done before EOF stands");
@@ -141,7 +148,7 @@ class ConsoleAppTest {
     @Test
     @DisplayName("adding a task confirms it and stores it")
     void addingATaskConfirmsAndStores() {
-        Session session = run("1", "Finish assessment", "6");
+        Session session = run("1", "Finish assessment", "", "", "6");
 
         assertTrue(session.printed("Task added."));
         assertEquals(1, session.manager().getTaskCount());
@@ -151,7 +158,7 @@ class ConsoleAppTest {
     @Test
     @DisplayName("an empty task name is refused and nothing is stored")
     void emptyTaskNameIsRefused() {
-        Session session = run("1", "   ", "6");
+        Session session = run("1", "   ", "", "", "6");
 
         assertTrue(session.printed("A task needs a name. Nothing was added."));
         assertEquals(0, session.manager().getTaskCount());
@@ -170,13 +177,26 @@ class ConsoleAppTest {
     @Test
     @DisplayName("the list numbers tasks from one and shows each status")
     void listShowsNumbersAndStatuses() {
-        Session session = run("1", "Alpha", "1", "Beta", "3", "1", "2", "6");
+        Session session = run("1", "Alpha", "", "", "1", "Beta", "", "", "3", "1", "2", "6");
 
         assertTrue(session.printed("1. Alpha"));
         assertTrue(session.printed("2. Beta"));
         assertTrue(session.printed("[Done]"));
         assertTrue(session.printed("[Pending]"));
         assertTrue(session.printed("1 of 2 complete."));
+    }
+
+    @Test
+    @DisplayName("adding optional dates and viewing tasks shows derived urgency")
+    void optionalFieldsAndUrgencyAreShown() {
+        Session session = runAt(
+                Clock.fixed(Instant.parse("2026-09-30T10:00:00Z"), ZoneOffset.UTC),
+                "1", "Due today", "2026-09-30", "0", "2", "6");
+
+        assertEquals("Due today", session.manager().getTasks().get(0).getName());
+        assertEquals("2026-09-30",
+                session.manager().getTasks().get(0).getDueDate().orElseThrow().toString());
+        assertTrue(session.printed("DUE_TODAY"));
     }
 
     // ---------------------------------------------------------------------
@@ -196,7 +216,7 @@ class ConsoleAppTest {
     @Test
     @DisplayName("an out-of-range task number is reported without touching the task")
     void outOfRangeTaskNumberIsReported() {
-        Session session = run("1", "Revise", "3", "9", "6");
+        Session session = run("1", "Revise", "", "", "3", "9", "6");
 
         assertTrue(session.printed("Task 9 was not found"));
         assertFalse(session.manager().isTaskCompleted(0), "the real task is untouched");
@@ -205,7 +225,7 @@ class ConsoleAppTest {
     @Test
     @DisplayName("a non-numeric task number is reported and the loop continues")
     void nonNumericTaskNumberIsReported() {
-        Session session = run("1", "Revise", "4", "abc", "2", "6");
+        Session session = run("1", "Revise", "", "", "4", "abc", "2", "6");
 
         assertTrue(session.printed("'abc' is not a task number."));
         assertEquals(1, session.manager().getTaskCount(), "nothing was deleted");
@@ -215,7 +235,7 @@ class ConsoleAppTest {
     @Test
     @DisplayName("task number zero is reported rather than wrapping to the last task")
     void taskNumberZeroIsReported() {
-        Session session = run("1", "Revise", "3", "0", "6");
+        Session session = run("1", "Revise", "", "", "3", "0", "6");
 
         assertTrue(session.printed("Task 0 was not found"));
         assertFalse(session.manager().isTaskCompleted(0));
@@ -224,7 +244,7 @@ class ConsoleAppTest {
     @Test
     @DisplayName("completing the same task twice reports it, and the count does not double")
     void completingTwiceIsReported() {
-        Session session = run("1", "Revise", "3", "1", "3", "1", "2", "6");
+        Session session = run("1", "Revise", "", "", "3", "1", "3", "1", "2", "6");
 
         assertTrue(session.printed("already complete"));
         assertEquals(1, session.manager().getCompletedCount());
@@ -234,7 +254,7 @@ class ConsoleAppTest {
     @Test
     @DisplayName("deleting removes the task and renumbers the remainder")
     void deletingRenumbersTheRemainder() {
-        Session session = run("1", "Alpha", "1", "Beta", "4", "1", "2", "6");
+        Session session = run("1", "Alpha", "", "", "1", "Beta", "", "", "4", "1", "2", "6");
 
         assertTrue(session.printed("Task deleted."));
         assertEquals(1, session.manager().getTaskCount());
@@ -248,7 +268,8 @@ class ConsoleAppTest {
     @Test
     @DisplayName("the health check reports live state, not a fixed string")
     void healthCheckReportsLiveState() {
-        Session session = run("1", "Revise", "1", "Submit", "3", "1", "5", "6");
+        Session session = run("1", "Revise", "", "", "1", "Submit", "", "",
+                "3", "1", "5", "6");
 
         assertTrue(session.printed("status=UP"));
         assertTrue(session.printed("tasks=2"), "the reported count must follow real state");
@@ -267,9 +288,9 @@ class ConsoleAppTest {
     @DisplayName("a full session across all five stories leaves the expected state")
     void fullSessionAcrossEveryStory() {
         Session session = run(
-                "1", "Read chapter 1",    // US1
-                "1", "Write summary",     // US1
-                "1", "Submit assignment", // US1
+                "1", "Read chapter 1", "", "",    // US1
+                "1", "Write summary", "", "",     // US1
+                "1", "Submit assignment", "", "", // US1
                 "2",                      // US2
                 "3", "2",                 // US3
                 "4", "1",                 // US4
