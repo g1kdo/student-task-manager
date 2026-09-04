@@ -372,16 +372,16 @@ operated it, what was actually executed, and the file holding the raw output.
   \code{stage1/00..02}, \code{docs/features/\allowbreak task-due-dates.md} \\
 1a & ajv 8 via Node 24 & Claude Code (CLI) & \ran &
   \code{stage1/02-schema-\allowbreak validation.txt} --- 17/17 cases pass \\
-2 & GitHub Copilot (VS Code) & the author, manually & \notran &
-  \code{stage2/} --- prompt prepared, outputs pending \\
-3 & Claude Code (CLI) & assistant, real shell & \notran &
-  \code{stage3/} --- runs after Stage 2 \\
+2 & GitHub Copilot, Agent mode (VS Code) & the author, manually & \ran &
+  \code{stage2/02-working-\allowbreak tree.diff} --- 329 insertions across 8 files \\
+3 & Claude Code (CLI) & assistant, real shell & \ran &
+  \code{stage3/01-session.log} (verbatim), \code{stage3/02-outcome.md};
+  commit \code{9c2ecf8} \\
 \bottomrule
 \end{tabularx}
-\caption{Execution status at the time of writing. \ran{} means a command was
-run and its output captured; \notran{} means exactly that. This table is the
-first thing to update as the remaining stages run, and no claim elsewhere in
-this document may outrun it.}
+\caption{Execution status. \ran{} means a command was run and its output
+captured; \notran{} would mean exactly that. No claim elsewhere in this
+document may outrun this table.}
 \end{table}
 
 \subsection{A limitation stated up front}
@@ -526,14 +526,54 @@ assistant that can reference a file in the workspace can consume it.
 % =====================================================================
 \section{Stage 2 --- IDE UX}
 
-\textbf{Status: \notran{} at the time of writing.} The prompt is prepared in
-\code{stage2/01-prompt.txt} and the procedure is in \code{docs/lab3/RUNBOOK.md}.
-This section will report what the tool actually did, the diff it produced, and
-any friction encountered. It is left explicitly empty rather than filled with a
-plausible transcript --- writing the expected result before running the stage is
-the specific error this resubmission exists to correct.
+\textbf{Status: \ran.} GitHub Copilot, Agent mode, in VS Code. Diff captured in
+\code{stage2/02-working-tree.diff}.
 
-\subsection{The prompt (prepared)}
+\subsection{What the tool actually produced}
+
+329 insertions and 19 deletions across 8 files, from the prompt alone:
+
+\begin{table}[h]
+\centering
+\small
+\begin{tabularx}{\textwidth}{@{}l r X@{}}
+\toprule
+\textbf{File} & \textbf{$\Delta$} & \textbf{What changed} \\
+\midrule
+\code{Urgency.java} & +8 & New enum: \code{OVERDUE}, \code{DUE\_TODAY}, \code{UPCOMING}, \code{NONE} \\
+\code{AddResult.java} & +7 & New enum: \code{ADDED}, \code{REJECTED\_DUPLICATE}, \code{REJECTED\_INVALID} \\
+\code{Task.java} & +50 & Two optional fields; the conditional rule and the length bound guarded in the constructor; \code{urgencyOn} and \code{needsReminderOn} \\
+\code{TaskManager.java} & +39 & Overloaded \code{addTask} returning \code{AddResult}; \code{hasTaskNamed}; \code{tasksNeedingReminder}; a private \code{normalizeName} for case- and whitespace-insensitive matching \\
+\code{ConsoleApp.java} & +63 & Prompts for both optional fields, urgency in the task list, and a \code{Clock} constructor parameter for determinism \\
+\code{TaskTest.java} & +67 & 7 new tests \\
+\code{TaskManagerTest.java} & +61 & 6 new tests \\
+\code{ConsoleAppTest.java} & +53 & Existing sessions updated for the two new prompts, plus one new test \\
+\bottomrule
+\end{tabularx}
+\caption{Stage 2's output. The IDE UX earned its place here: it found the
+existing \code{@Nested}/\code{@DisplayName} test structure, the SLF4J logger and
+the \code{readLine} prompt helper without being shown them, and --- notably ---
+it updated the \emph{existing} \code{ConsoleAppTest} keystroke sequences to
+account for the two new prompts, which is a consequence of the change that the
+prompt never mentioned.}
+\end{table}
+
+\subsection{Where it overreached}
+
+Copilot also edited \textbf{Artifact A itself}, replacing the four
+\code{TODO(stage-2)} markers in \code{docs/features/task-due-dates.md} with a
+prose paragraph --- left inside the \code{java} fence, so the code block became
+malformed.
+
+The prompt is at fault, not the tool. It said \emph{``close every
+\code{TODO(stage-2)} marker in section 3 of the spec''}, which reads as
+naturally as ``edit the spec'' as it does ``satisfy these in code''. Artifact A
+was restored, because it is Stage 1's output and editing it destroys the record
+of what Stage 1 produced. The lesson is specific and reusable: \emph{a prompt
+that names a file as the source of requirements should say explicitly whether
+that file is writable.}
+
+\subsection{The prompt}
 
 Points Copilot Agent mode at five real files with \code{\#file:} references ---
 the spec plus \code{Task.java}, \code{TaskManager.java}, \code{ConsoleApp.java}
@@ -557,10 +597,108 @@ prompt helper. Three constraints are load-bearing:
 % =====================================================================
 \section{Stage 3 --- CLI UX}
 
-\textbf{Status: \notran{} at the time of writing.} Runs once Stage 2 has left
-changes in the working tree.
+\textbf{Status: \ran.} Verbatim log in \code{stage3/01-session.log}; analysis in
+\code{stage3/02-outcome.md}.
 
-\subsection{The prompt (prepared)}
+\subsection{Stage 2's output did not build}
+
+This is the single most useful result in the lab, and it is the one the first
+submission could never have produced. The first thing Stage 3 did was run the
+verification, and it failed:
+
+\begin{lstlisting}[style=plain]
+$ ./mvnw -B clean verify
+[ERROR] Tests run: 81, Failures: 1, Errors: 0, Skipped: 0
+[ERROR]   TaskManagerTest$AddTask.remindersAreSortedByDueDate:120
+          expected: <[Sooner, Later]> but was: <[Sooner]>
+[INFO] BUILD FAILURE
+[exit=1, 14s]
+\end{lstlisting}
+
+\noindent The implementation was \emph{correct}; the test's data was wrong:
+
+\begin{table}[h]
+\centering
+\small
+\begin{tabular}{@{}l l l l c@{}}
+\toprule
+\textbf{Task} & \textbf{Due} & \textbf{Lead} & \textbf{Reminder window} & \textbf{Contains 2026-09-28?} \\
+\midrule
+\code{Later}  & 2026-10-02 & 2 days & \code{[2026-09-30, 2026-10-02]} & No \\
+\code{Sooner} & 2026-09-28 & 3 days & \code{[2026-09-25, 2026-09-28]} & Yes \\
+\bottomrule
+\end{tabular}
+\caption{\code{[Sooner]} is the right answer. Copilot's expectation of
+\code{[Sooner, Later]} contradicted the reminder rule in section 2 of the very
+artefact it was implementing.}
+\end{table}
+
+\noindent So the IDE stage wrote an assertion that disagreed with its own
+specification --- a failure mode no amount of reading the diff would reliably
+catch, because the assertion looks entirely plausible. Only running it exposes
+it.
+
+\subsection{The fix corrected the data, not the assertion}
+
+The Stage 3 prompt forbids weakening a test to go green. Nothing was weakened.
+The test's \emph{intent} was to verify due-date ordering, but with its original
+data it could only ever have verified filtering, so \code{Later}'s lead time was
+widened from 2 days to 4 --- making its window genuinely include the date under
+test, and making the test exercise what its name claims. A second test,
+\code{remindersExcludeTasksOutsideTheirWindow}, was added for the filtering case
+the original was accidentally asserting.
+
+\begin{lstlisting}[style=plain]
+$ ./mvnw -B clean verify
+[INFO] Tests run: 84, Failures: 0, Errors: 0, Skipped: 0
+[INFO] All coverage checks have been met.
+[INFO] BUILD SUCCESS
+[exit=0, 13s]
+\end{lstlisting}
+
+\noindent The two-attempt stop condition was never reached: the failure was
+diagnosed and fixed on the first attempt. Tests went from 69 to 84.
+
+\subsection{Artifact C --- the commit}
+
+\begin{lstlisting}[style=plain]
+commit 9c2ecf8
+feat(task): add due dates, duplicate rejection and derived urgency
+
+Task gains two optional fields, dueDate and remindBeforeDays, with the
+contract's conditional rule guarded in the constructor: a reminder lead
+time without a due date is refused, as is a lead time outside 0-30 days
+or a name longer than 120 characters. [...]
+
+- Urgency (OVERDUE, DUE_TODAY, UPCOMING, NONE) is derived by
+  Task.urgencyOn(LocalDate), never stored, so it cannot go stale
+- TaskManager.addTask(String, LocalDate, Integer) returns AddResult so a
+  duplicate is distinguishable from a success or a contract violation
+[...]
+Tests go from 69 to 84, covering the conditional rule in both
+directions, the 0 and 30 lead-time boundaries, [...]
+\end{lstlisting}
+
+\noindent The message was authored from \code{git diff --staged} --- the staged
+file list, the public signatures actually added and the test method names
+actually introduced --- not from a description of the intended work. The
+``69 to 84'' figure in it is read off the two build logs, not asserted.
+
+\subsection{Deviations, recorded}
+
+\begin{enumerate}
+  \item \textbf{\code{git add src} rather than \code{git add -A}.} Staging
+        everything would have folded the lab's own documentation into a commit
+        whose message describes a code feature. The artefacts are committed
+        separately.
+  \item \textbf{The working tree moved mid-stage.} The IDE was still writing
+        files at 17:16:47, after the first verification began at 17:15:35. The
+        verification was re-run against the settled tree before anything was
+        committed, and the intermediate 82-test count is left in the log rather
+        than tidied away.
+\end{enumerate}
+
+\subsection{The prompt}
 
 \begin{lstlisting}[style=plain]
 There are uncommitted changes implementing task due dates, duplicate rejection
@@ -644,9 +782,27 @@ Report toolchain
     errors as \code{::error::} annotations, which \emph{are} readable without
     admin rights. The next failure is diagnosable from the run itself. \\
 \addlinespace
-Stage 2 & \emph{To be completed after the stage runs.} & \\
+Stage 2 prompt ambiguity
+  & ``Close every \code{TODO(stage-2)} marker in section 3 of the spec'' was
+    read as permission to edit the spec. Copilot rewrote Artifact A, leaving
+    prose inside a \code{java} fence.
+  & Artifact A restored; the ambiguity recorded. A prompt naming a file as the
+    source of requirements must say whether that file is writable. No change to
+    the workflow's structure. \\
 \addlinespace
-Stage 3 & \emph{To be completed after the stage runs.} & \\
+Stage 2 $\rightarrow$ 3 hand-off
+  & The IDE was still writing files after Stage 3's first verification had
+    begun, so that run measured a tree that no longer existed.
+  & Re-ran the verification against the settled tree before committing. The
+    filesystem bridge has no completion signal --- an honest limitation of
+    using the working tree as the hand-off primitive. \\
+\addlinespace
+Stage 3 verification
+  & Stage 2's output did not build: one test asserted the opposite of the
+    spec's reminder rule.
+  & Corrected the test data rather than the assertion, and added a test for the
+    case the original was accidentally covering. This is the workflow behaving
+    as designed --- the CLI stage exists to catch exactly this. \\
 \bottomrule
 \end{tabularx}
 \end{table}
@@ -654,15 +810,56 @@ Stage 3 & \emph{To be completed after the stage runs.} & \\
 % =====================================================================
 \section{Efficiency}
 
-\textbf{This section is deliberately thin until the remaining stages run.} The
-first submission claimed a ``3--4 hour baseline collapsing to minutes''. Neither
-number was measured, and the review was right to mark that down. Measured
-figures are recorded in \code{docs/lab3/artefacts/timings.md} as each stage
-runs, and the baseline will be either measured on a comparable slice of work or
-labelled an estimate with its reasoning shown --- not presented as a
-measurement.
+The first submission claimed a ``3--4 hour baseline collapsing to minutes''.
+Neither number was measured, and the review was right to mark that down. What
+follows separates what was timed from what is estimated, and labels the
+estimate as one.
 
-What can be stated structurally, without a stopwatch:
+\subsection{Measured}
+
+\begin{table}[h]
+\centering
+\small
+\begin{tabularx}{\textwidth}{@{}l l X@{}}
+\toprule
+\textbf{Stage} & \textbf{Duration} & \textbf{How measured} \\
+\midrule
+2 (IDE) & $\approx$2\,min\,37\,s of tool output
+  & File modification times across Copilot's writes, 17:14:10 to 17:16:47.
+    Excludes the author's prompt-entry and diff-review time, which was not
+    instrumented. \\
+\addlinespace
+3 (CLI) & $\approx$3\,min\,25\,s
+  & First verification at 17:15:35 to commit at 17:19:00, from
+    \code{01-session.log} and the commit timestamp. Includes diagnosis, the
+    fix and two further verification runs. \\
+\addlinespace
+--- builds & 14\,s and 13\,s
+  & \code{[exit=1, 14s]} and \code{[exit=0, 13s]} in the session log ---
+    recorded by the capture wrapper, not stopwatched. \\
+\addlinespace
+1a (schema) & $<$1\,s
+  & 17 ajv cases; see \code{stage1/02-schema-validation.txt}. \\
+\bottomrule
+\end{tabularx}
+\caption{Instrumented figures only. Stage 1's design time is not included
+because it was conversational and not timed --- saying so is more useful than
+inventing a number.}
+\end{table}
+
+\subsection{Estimated --- and labelled as such}
+
+\textbf{This is an estimate, not a measurement.} No hand-written control
+implementation was built, so there is no measured baseline to compare against.
+What can be said with the artefacts in hand: Stage 2 produced 329 insertions
+across 8 files including 14 tests, and Stage 3's diagnosis required reading a
+reminder-window rule against two dates. Writing the 14 boundary tests by hand,
+with the same care over the inclusive window and the days either side of today,
+is the bulk of that work, and a plausible figure is 60--90 minutes rather than
+the 3--4 hours originally claimed. That range is reasoned, not observed, and
+should be read accordingly.
+
+\subsection{Structural, and independent of any stopwatch}
 
 \begin{itemize}
   \item \textbf{Human involvement is three decisions} --- approve the spec,
@@ -698,42 +895,55 @@ criteria that are not yet fully evidenced as exactly that.
 \bottomrule
 \endfoot
 Functionality (40\%)
-  & \partly
-  & Stage 1 executed and independently checked: schema compiles under draft
-    2020-12 strict mode, 17/17 contract cases behave as specified
-    (\S\ref{sec:schemacheck}). Artifact A committed in the repository.
-  & Stages 2 and 3 have not run. Until they do, there is no end-to-end claim to
-    make, and none is made. \\
+  & \ran
+  & All three stages ran end to end against a real repository. Schema checked,
+    17/17 (\S\ref{sec:schemacheck}). Stage 2 diff captured, 329 insertions
+    across 8 files. Stage 3 log captured: a genuine build failure, a fix, and
+    \code{BUILD SUCCESS} at 84 tests with the coverage gate met. Commit
+    \code{9c2ecf8} exists and its message was authored from the staged diff.
+  & Nothing. The chain completed and the artefacts are in the repository. \\
 \addlinespace
 Adaptability (20\%)
   & \partly
-  & Bridges use only files, the working tree and a commit. One real
-    re-pointing already survived: Python/FastAPI $\rightarrow$ Java/Maven with
-    no change to stage structure or artefact formats.
-  & A tool swap \emph{within} a stage has not yet been forced, which is the
-    stronger form of this evidence. \\
+  & Bridges use only a file, the working tree and a commit. Three real
+    re-pointings survived without altering stage structure or artefact
+    formats: Python/FastAPI $\rightarrow$ Java/Maven, a prompt-ambiguity
+    correction at Stage 2, and a LaTeX toolchain failure in the report
+    pipeline.
+  & No tool swap \emph{within} a stage was forced --- e.g.\ a Copilot outage
+    requiring Cursor mid-flight. That is the stronger form of this evidence and
+    it did not arise. \\
 \addlinespace
 Documentation (20\%)
   & \ran
   & Diagram plus plain-text fallback; per-stage Input / Prompt / Output /
     Bridge structure; every prompt quoted verbatim from the committed file that
-    was actually issued; a runbook stating which artefact each step must leave.
-  & Nothing outstanding, beyond filling the Stage 2--3 sections with real
-    results. \\
+    was issued; a friction log recording four real problems; a runbook stating
+    which artefact each step must leave.
+  & Nothing outstanding. \\
 \addlinespace
 Efficiency (20\%)
-  & \notran
-  & Structural argument only: three approval gates, zero retyping, explicit
-    stop conditions.
-  & No measured timings yet, and no measured baseline. Deliberately not
-    asserted --- this is the exact overclaim being corrected. \\
+  & \partly
+  & Instrumented: Stage 2 $\approx$2\,min\,37\,s of tool output, Stage 3
+    $\approx$3\,min\,25\,s including diagnosis and fix, builds at 14\,s and
+    13\,s. Structurally: three approval gates, no retyping, explicit stop
+    conditions.
+  & No measured baseline. The 60--90 minute manual comparison is reasoned from
+    the artefacts and \emph{labelled an estimate}, because no hand-written
+    control was built. \\
 \end{longtable}
 
-\noindent\textbf{Net position, stated plainly.} Documentation is complete.
-Functionality and Adaptability are partly evidenced, with the executed portion
-identified and the unexecuted portion named. Efficiency is not yet evidenced at
-all. A mock transcript is not proof of anything, and arguing a score from one
-was the wrong instinct; this table is what replaces that.
+\noindent\textbf{Net position, stated plainly.} Functionality and Documentation
+are evidenced by captured artefacts. Adaptability is strongly but not
+completely evidenced --- three re-pointings survived, no intra-stage tool swap
+was forced. Efficiency is partly evidenced: the stage timings are instrumented,
+the baseline is not, and the comparison is labelled an estimate rather than
+presented as a measurement.
+
+The first submission's error is worth naming precisely against this table. It
+did not fail because nothing had been run; it failed because the matrix cited a
+mock transcript as ``objective proof the artifact functions end-to-end''. Every
+row above now points at a file, and where evidence is missing the row says so.
 
 % =====================================================================
 \section{Reflection}
